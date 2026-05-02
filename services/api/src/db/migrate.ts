@@ -170,4 +170,26 @@ export async function migrate(): Promise<void> {
       )
     `);
   }
+
+  const phoneCol = await pool.query<{ exists: boolean }>(
+    `SELECT EXISTS (
+       SELECT 1 FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'phone_e164'
+     ) AS exists`
+  );
+  if (!phoneCol.rows[0]?.exists) {
+    await pool.query(`ALTER TABLE users ADD COLUMN phone_e164 TEXT`);
+  }
+  const smsCol = await pool.query<{ exists: boolean }>(
+    `SELECT EXISTS (
+       SELECT 1 FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'sms_alerts'
+     ) AS exists`
+  );
+  if (!smsCol.rows[0]?.exists) {
+    await pool.query(`
+      ALTER TABLE users
+      ADD COLUMN sms_alerts BOOLEAN NOT NULL DEFAULT false
+    `);
+  }
 }

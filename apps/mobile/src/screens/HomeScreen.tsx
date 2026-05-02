@@ -1,9 +1,8 @@
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
-  Platform,
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -11,16 +10,13 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { PlaceMarkerIcon } from "../components/PlaceMarkerIcon";
+import { PinItLogoIcon } from "../components/PinItLogoIcon";
 import { TaskCard } from "../components/TaskCard";
 import { useAuth } from "../context/AuthContext";
-import { fetchTasks, postWebPushTest } from "../lib/api";
+import { fetchTasks } from "../lib/api";
 import { useTasks } from "../context/TasksContext";
 import { usePinReminders } from "../hooks/usePinReminders";
-import {
-  hasWebPushSubscription,
-  subscribeToWebPush,
-  unsubscribeFromWebPush,
-} from "../lib/webPush";
 import * as Location from "expo-location";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/types";
@@ -32,6 +28,19 @@ type Props = {
 
 /** What to show in the main list: everything, pins whose zone contains you, or pin centers near you. */
 type ListScope = "all" | "inZone" | "nearCenters";
+
+/** Header mark — map + pin + task (inline SVG, all platforms). */
+function PinItLogoMark() {
+  return (
+    <View
+      className="h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-sm shadow-pin-200/40"
+      accessibilityLabel="PIN it — map, pin, and tasks"
+      accessibilityRole="image"
+    >
+      <PinItLogoIcon size={44} />
+    </View>
+  );
+}
 
 export function HomeScreen({ navigation }: Props) {
   const { user, accessToken, signOut } = useAuth();
@@ -64,23 +73,17 @@ export function HomeScreen({ navigation }: Props) {
   const [loc, setLoc] = useState<{ lat: number; lon: number } | null>(null);
   const [remindersOn, setRemindersOn] = useState(true);
   const [inAppBanner, setInAppBanner] = useState<Task[] | null>(null);
-  const [webPushOn, setWebPushOn] = useState(false);
-  const [webPushBusy, setWebPushBusy] = useState(false);
   const [listScope, setListScope] = useState<ListScope>("all");
   const [scopeTasks, setScopeTasks] = useState<Task[]>([]);
   const [scopeLoading, setScopeLoading] = useState(false);
   const [scopeError, setScopeError] = useState<string | null>(null);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
 
   const onWebInAppFallback = useCallback((batch: Task[]) => {
     setInAppBanner(batch.length > 0 ? batch : null);
   }, []);
 
   usePinReminders(tasks, apiBase, accessToken, remindersOn, onWebInAppFallback);
-
-  React.useEffect(() => {
-    if (Platform.OS !== "web" || !accessToken) return;
-    void hasWebPushSubscription().then(setWebPushOn);
-  }, [accessToken]);
 
   const updateLocation = useCallback(async () => {
     const { status } = await Location.getForegroundPermissionsAsync();
@@ -156,13 +159,26 @@ export function HomeScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50" edges={["top"]}>
-      <View className="border-b border-slate-200 bg-white px-4 pb-3 pt-2">
+      <View className="border-b border-slate-100 bg-red-50 px-4 pb-4 pt-3">
         <View className="flex-row items-center justify-between">
-          <View className="flex-1 pr-2">
-            <Text className="text-lg font-semibold text-slate-900">Places & reminders</Text>
-            <Text className="text-xs text-slate-500" numberOfLines={1}>
-              {user?.name ?? user?.email ?? "Signed in"}
-            </Text>
+          <View className="min-w-0 flex-1 flex-row items-center gap-3 pr-2">
+            <PinItLogoMark />
+            <View className="min-w-0 flex-1">
+              <Text
+                className="text-2xl font-bold tracking-tight"
+                accessibilityRole="header"
+              >
+                <Text className="text-red-600">Pin</Text>
+                <Text className="text-slate-900">It</Text>
+              </Text>
+              <View className="mt-1.5 h-1 w-9 rounded-full bg-red-500" />
+              <Text
+                className="mt-2 text-xs font-medium text-slate-500"
+                numberOfLines={1}
+              >
+                {user?.name ?? user?.email ?? "Signed in"}
+              </Text>
+            </View>
           </View>
           <View className="flex-row items-center gap-2">
             <View
@@ -192,18 +208,15 @@ export function HomeScreen({ navigation }: Props) {
           </Text>
           <Pressable
             onPress={() => setRemindersOn((v) => !v)}
-            className="rounded-md bg-sky-50 px-2 py-1"
+            className="rounded-md bg-red-100/80 px-2 py-1"
           >
-            <Text className="text-xs font-medium text-sky-800">
+            <Text className="text-xs font-medium text-red-900">
               Reminders {remindersOn ? "on" : "off"}
             </Text>
           </Pressable>
         </View>
 
-        <Text className="mt-3 text-xs font-medium uppercase text-slate-500">
-          List
-        </Text>
-        <View className="mt-2 flex-row flex-wrap gap-2">
+        <View className="mt-3 flex-row flex-wrap gap-2">
           {(
             [
               ["all", "All", "Every reminder"],
@@ -217,13 +230,13 @@ export function HomeScreen({ navigation }: Props) {
               accessibilityHint={hint}
               className={`rounded-full border px-3 py-1.5 ${
                 listScope === key
-                  ? "border-sky-600 bg-sky-50"
+                  ? "border-red-600 bg-red-50"
                   : "border-slate-200 bg-white"
               }`}
             >
               <Text
                 className={`text-xs font-semibold ${
-                  listScope === key ? "text-sky-900" : "text-slate-700"
+                  listScope === key ? "text-red-950" : "text-slate-700"
                 }`}
               >
                 {label}
@@ -281,107 +294,6 @@ export function HomeScreen({ navigation }: Props) {
             >
               <Text className="text-sm font-medium text-amber-950">OK</Text>
             </Pressable>
-          </View>
-        </View>
-      ) : null}
-
-      {Platform.OS === "web" && accessToken ? (
-        <View className="mx-4 mt-3 rounded-xl border border-slate-200 bg-white p-3">
-          <Text className="text-xs font-medium uppercase text-slate-500">
-            Background browser alerts
-          </Text>
-          <Text className="mt-1 text-xs text-slate-600">
-            Pushes are sent when the server receives a location “nudge” (you entered
-            the pin radius with Reminders on). Use “Send test” to verify VAPID +
-            this browser without moving. Railway must set WEB_PUSH_* env vars.
-          </Text>
-          <View className="mt-2 flex-row flex-wrap gap-2">
-            <Pressable
-              disabled={webPushBusy}
-              onPress={() => {
-                if (!accessToken) return;
-                setWebPushBusy(true);
-                void (async () => {
-                  try {
-                    if (webPushOn) {
-                      await unsubscribeFromWebPush(accessToken);
-                      setWebPushOn(false);
-                    } else {
-                      const r = await subscribeToWebPush(accessToken);
-                      if (r.ok) {
-                        setWebPushOn(true);
-                      } else if (r.error === "no_server_keys") {
-                        Alert.alert(
-                          "Web Push",
-                          "Server is missing WEB_PUSH_PUBLIC_KEY / WEB_PUSH_PRIVATE_KEY (check Railway)."
-                        );
-                      } else if (r.error === "denied") {
-                        Alert.alert(
-                          "Notifications",
-                          "Allow notifications for this site to enable push."
-                        );
-                      }
-                    }
-                  } finally {
-                    setWebPushBusy(false);
-                  }
-                })();
-              }}
-              className="rounded-lg bg-sky-600 px-3 py-2 active:bg-sky-700 disabled:opacity-60"
-            >
-              {webPushBusy ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text className="text-sm font-semibold text-white">
-                  {webPushOn ? "Turn off push" : "Enable push"}
-                </Text>
-              )}
-            </Pressable>
-            <Text className="self-center text-xs text-slate-500">
-              {webPushOn ? "On" : "Off"}
-            </Text>
-            {webPushOn ? (
-              <Pressable
-                disabled={webPushBusy}
-                onPress={() => {
-                  if (!accessToken) return;
-                  setWebPushBusy(true);
-                  void (async () => {
-                    try {
-                      const r = await postWebPushTest(apiBase, accessToken);
-                      if (!r.vapidConfigured) {
-                        Alert.alert(
-                          "Web Push",
-                          "Server has no VAPID keys. Set WEB_PUSH_PUBLIC_KEY, WEB_PUSH_PRIVATE_KEY, WEB_PUSH_SUBJECT on Railway and redeploy."
-                        );
-                      } else if (r.subscriptions === 0) {
-                        Alert.alert(
-                          "Web Push",
-                          "No subscription stored. Turn push off and Enable again."
-                        );
-                      } else {
-                        Alert.alert(
-                          "Web Push test",
-                          `Sent: ${r.sent}, failed: ${r.failed}, subscriptions: ${r.subscriptions}. Check for a system notification (and OS Focus / Do Not Disturb).`
-                        );
-                      }
-                    } catch (e) {
-                      Alert.alert(
-                        "Web Push",
-                        e instanceof Error ? e.message : "Test failed"
-                      );
-                    } finally {
-                      setWebPushBusy(false);
-                    }
-                  })();
-                }}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2 active:bg-slate-50 disabled:opacity-60"
-              >
-                <Text className="text-sm font-medium text-slate-800">
-                  Send test
-                </Text>
-              </Pressable>
-            ) : null}
           </View>
         </View>
       ) : null}
@@ -451,14 +363,21 @@ export function HomeScreen({ navigation }: Props) {
                 }
                 className="mb-3 mt-3 rounded-2xl border border-slate-200 bg-white p-4 active:bg-slate-50"
               >
-                <Text className="text-base font-semibold text-slate-900">
-                  {place.name}
-                </Text>
-                <Text className="mt-1 text-xs text-slate-500">
+                <View className="flex-row items-center gap-2.5">
+                  <View className="rounded-xl bg-pin-50 p-2">
+                    <PlaceMarkerIcon size={22} />
+                  </View>
+                  <View className="min-w-0 flex-1">
+                    <Text className="text-base font-semibold text-slate-900">
+                      {place.name}
+                    </Text>
+                    <Text className="mt-1 text-xs text-slate-500">
                   Radius {place.radiusMeters} m ·{" "}
                   {taskCountForLocation(place.id)} reminder
                   {taskCountForLocation(place.id) === 1 ? "" : "s"}
-                </Text>
+                    </Text>
+                  </View>
+                </View>
               </Pressable>
             ))
           )}
@@ -509,24 +428,68 @@ export function HomeScreen({ navigation }: Props) {
         </ScrollView>
       )}
 
-      <Pressable
-        onPress={() =>
-          Alert.alert("Add", "Choose what to create.", [
-            {
-              text: "New place",
-              onPress: () => navigation.navigate("AddLocation"),
-            },
-            {
-              text: "Time reminder",
-              onPress: () => navigation.navigate("AddTimeReminder"),
-            },
-            { text: "Cancel", style: "cancel" },
-          ])
-        }
-        className="absolute bottom-8 right-6 h-14 w-14 items-center justify-center rounded-full bg-sky-600 shadow-lg active:bg-sky-700"
+      <View
+        className="absolute bottom-8 right-6 z-[100] h-14 w-14"
+        style={{ elevation: 12 }}
       >
-        <Text className="text-2xl font-light text-white">+</Text>
-      </Pressable>
+        <Pressable
+          onPress={() => setAddMenuOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Add place or time reminder"
+          className="h-14 w-14 items-center justify-center rounded-full bg-red-600 shadow-lg active:bg-red-700"
+        >
+          <Text className="text-2xl font-light text-white">+</Text>
+        </Pressable>
+      </View>
+
+      <Modal
+        visible={addMenuOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAddMenuOpen(false)}
+      >
+        <View className="flex-1 justify-end">
+          <Pressable
+            accessibilityLabel="Close"
+            onPress={() => setAddMenuOpen(false)}
+            className="absolute inset-0 bg-black/50"
+          />
+          <View className="relative z-10 rounded-t-2xl border-t border-slate-200 bg-white px-4 pb-8 pt-4">
+            <Text className="text-center text-base font-semibold text-slate-900">
+              Add
+            </Text>
+            <Text className="mt-1 text-center text-sm text-slate-500">
+              Choose what to create
+            </Text>
+            <Pressable
+              onPress={() => {
+                setAddMenuOpen(false);
+                navigation.navigate("AddLocation");
+              }}
+              className="mt-4 items-center rounded-xl bg-red-600 py-4 active:bg-red-700"
+            >
+              <Text className="text-base font-semibold text-white">New place</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setAddMenuOpen(false);
+                navigation.navigate("AddTimeReminder");
+              }}
+              className="mt-3 items-center rounded-xl border border-slate-200 bg-white py-4 active:bg-slate-50"
+            >
+              <Text className="text-base font-semibold text-slate-800">
+                Time reminder
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setAddMenuOpen(false)}
+              className="mt-3 items-center py-3"
+            >
+              <Text className="text-base font-medium text-slate-600">Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

@@ -82,7 +82,7 @@ export function AddTimeReminderScreen({ navigation }: Props) {
         <Pressable
           onPress={() => void save()}
           disabled={busy}
-          className="mt-8 items-center rounded-xl bg-sky-600 py-4 active:bg-sky-700 disabled:opacity-60"
+          className="mt-8 items-center rounded-xl bg-pin-600 py-4 active:bg-pin-700 disabled:opacity-60"
         >
           {busy ? (
             <ActivityIndicator color="#fff" />

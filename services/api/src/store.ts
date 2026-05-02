@@ -278,6 +278,14 @@ export async function deleteTask(userId: string, id: string): Promise<boolean> {
   return result.rowCount !== null && result.rowCount > 0;
 }
 
+/** Deletes every task for the user. Locations are unchanged. */
+export async function deleteAllTasksForUser(userId: string): Promise<number> {
+  const result = await pool.query(`DELETE FROM tasks WHERE user_id = $1`, [
+    userId,
+  ]);
+  return result.rowCount ?? 0;
+}
+
 export async function listLocations(userId: string): Promise<Location[]> {
   const result = await pool.query<{
     id: string;
@@ -391,6 +399,81 @@ export async function deleteAllWebPushSubscriptionsForUser(
   await pool.query(`DELETE FROM web_push_subscriptions WHERE user_id = $1`, [
     userId,
   ]);
+}
+
+export type UserSmsSettings = {
+  phoneE164: string | null;
+  smsAlerts: boolean;
+};
+
+export async function getUserSmsSettings(
+  userId: string
+): Promise<UserSmsSettings> {
+  const r = await pool.query<{
+    phone_e164: string | null;
+    sms_alerts: boolean;
+  }>(
+    `SELECT phone_e164, COALESCE(sms_alerts, false) AS sms_alerts
+     FROM users WHERE id = $1`,
+    [userId]
+  );
+  const row = r.rows[0];
+  return {
+    phoneE164: row?.phone_e164 ?? null,
+    smsAlerts: row?.sms_alerts ?? false,
+  };
+}
+
+export type UserProfile = AppUser & UserSmsSettings;
+
+export async function getUserProfile(userId: string): Promise<UserProfile> {
+  const r = await pool.query<{
+    id: string;
+    email: string | null;
+    name: string | null;
+    picture: string | null;
+    phone_e164: string | null;
+    sms_alerts: boolean;
+  }>(
+    `SELECT id, email, name, picture, phone_e164, COALESCE(sms_alerts, false) AS sms_alerts
+     FROM users WHERE id = $1`,
+    [userId]
+  );
+  const row = r.rows[0];
+  if (!row) {
+    throw new Error("user_not_found");
+  }
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    picture: row.picture,
+    phoneE164: row.phone_e164,
+    smsAlerts: row.sms_alerts,
+  };
+}
+
+const e164 = /^\+[1-9]\d{7,14}$/;
+
+function normalizePhone(raw: string | null): string | null {
+  if (raw == null || raw.trim() === "") return null;
+  const t = raw.trim();
+  return e164.test(t) ? t : null;
+}
+
+export async function updateUserProfile(
+  userId: string,
+  input: { phoneE164: string | null; smsAlerts: boolean }
+): Promise<void> {
+  const phone = normalizePhone(input.phoneE164);
+  if (input.phoneE164 != null && input.phoneE164.trim() !== "" && phone === null) {
+    throw new Error("invalid_phone_e164");
+  }
+  const smsOn = Boolean(input.smsAlerts && phone);
+  await pool.query(
+    `UPDATE users SET phone_e164 = $2, sms_alerts = $3 WHERE id = $1`,
+    [userId, phone, smsOn]
+  );
 }
 
 export async function pingDb(): Promise<boolean> {

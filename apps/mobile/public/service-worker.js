@@ -26,7 +26,7 @@ self.addEventListener("push", (event) => {
   const title = payload.title || "Pinned";
   const body = payload.body || "You have a pin reminder";
   const origin = self.location.origin;
-  const iconUrl = `${origin}/pinned-nudge-icon.svg`;
+  const iconUrl = `${origin}/pin-it-logo.svg`;
   event.waitUntil(
     self.registration
       .showNotification(title, {

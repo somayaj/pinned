@@ -5,11 +5,11 @@ import {
   Alert,
   FlatList,
   Pressable,
-  ScrollView,
   Text,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { PlaceMarkerIcon } from "../components/PlaceMarkerIcon";
 import { TaskCard } from "../components/TaskCard";
 import { useAuth } from "../context/AuthContext";
 import { useTasks } from "../context/TasksContext";
@@ -59,7 +59,7 @@ export function LocationDetailScreen({ navigation, route }: Props) {
           onPress={() =>
             navigation.navigate("AddTask", { locationId, locationName: name })
           }
-          className="mr-2 rounded-lg bg-sky-600 px-3 py-2 active:bg-sky-700"
+          className="mr-2 rounded-lg bg-pin-600 px-3 py-2 active:bg-pin-700"
         >
           <Text className="text-sm font-semibold text-white">Add task</Text>
         </Pressable>
@@ -93,11 +93,18 @@ export function LocationDetailScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50" edges={["bottom"]}>
-      <ScrollView className="max-h-32 border-b border-slate-200 bg-white px-4 py-3">
+      <View className="border-b border-slate-200 bg-white px-4 py-3">
         <Text className="text-xs font-medium uppercase text-slate-500">
           Place
         </Text>
-        <Text className="text-lg font-semibold text-slate-900">{name}</Text>
+        <View className="mt-1 flex-row items-center gap-2.5">
+          <View className="rounded-xl bg-pin-50 p-2">
+            <PlaceMarkerIcon size={24} />
+          </View>
+          <Text className="flex-1 text-lg font-semibold text-slate-900">
+            {name}
+          </Text>
+        </View>
         <Text className="mt-1 text-xs text-slate-500">
           Reminders below fire when you enter this zone (and match any time
           window you set).
@@ -108,7 +115,7 @@ export function LocationDetailScreen({ navigation, route }: Props) {
         >
           <Text className="text-sm font-medium text-red-700">Delete place</Text>
         </Pressable>
-      </ScrollView>
+      </View>
 
       <FlatList
         data={tasks}

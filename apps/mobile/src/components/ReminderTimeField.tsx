@@ -107,7 +107,7 @@ export function ReminderTimeField({ value, onChange }: Props) {
               <View className="rounded-t-2xl bg-white p-4 pb-8">
                 <View className="mb-3 flex-row justify-between">
                   <Pressable onPress={() => setOpen(false)}>
-                    <Text className="text-base text-sky-600">Cancel</Text>
+                    <Text className="text-base text-pin-600">Cancel</Text>
                   </Pressable>
                   <Pressable
                     onPress={() => {
@@ -115,7 +115,7 @@ export function ReminderTimeField({ value, onChange }: Props) {
                       setOpen(false);
                     }}
                   >
-                    <Text className="text-base font-semibold text-sky-600">Done</Text>
+                    <Text className="text-base font-semibold text-pin-600">Done</Text>
                   </Pressable>
                 </View>
                 <DateTimePicker

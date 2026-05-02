@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <title>PinIt</title>
+  <defs>
+    <linearGradient id="pinItGrad" x1="40" y1="16" x2="88" y2="112" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f87171"/>
+      <stop offset="1" stop-color="#dc2626"/>
+    </linearGradient>
+    <filter id="softRed" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#991b1b" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+  <circle cx="64" cy="52" r="44" fill="#fecaca" opacity="0.55"/>
+  <circle cx="64" cy="52" r="36" fill="#fee2e2" opacity="0.95"/>
+  <path
+    filter="url(#softRed)"
+    fill="url(#pinItGrad)"
+    d="M64 20c-16.5 0-30 13.2-30 29.5C34 72 64 108 64 108s30-36 30-58.5C94 33.2 80.5 20 64 20zm0 42a14 14 0 110-28 14 14 0 010 28z"
+  />
+  <circle cx="64" cy="49.5" r="9" fill="white" opacity="0.95"/>
+</svg>

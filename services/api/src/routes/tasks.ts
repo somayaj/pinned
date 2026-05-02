@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { sendWebPushZoneEntry } from "../push/sendWebPush.js";
+import { notifyTaskAlertChannels } from "../notifyTaskAlert.js";
 import * as store from "../store.js";
 import { filterTasksByLocation } from "../taskLocationFilter.js";
 import { broadcastToUser } from "../wsHub.js";
@@ -206,7 +206,22 @@ taskRouter.post("/", async (req, res) => {
       task,
       reason: "new_task",
     });
+    void notifyTaskAlertChannels(userId, task, "new_task");
     res.status(201).json({ task });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "database_error" });
+  }
+});
+
+/** Delete all tasks for the signed-in user (does not delete saved places). */
+taskRouter.delete("/", async (req, res) => {
+  const userId = req.userId!;
+  try {
+    await store.deleteAllTasksForUser(userId);
+    const tasks = await store.listTasks(userId);
+    broadcastToUser(userId, { type: "tasks_updated", tasks });
+    res.json({ ok: true, tasks });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "database_error" });
@@ -249,7 +264,7 @@ taskRouter.post("/:id/nudge", async (req, res) => {
       task,
       reason,
     });
-    void sendWebPushZoneEntry(userId, task);
+    void notifyTaskAlertChannels(userId, task, reason);
     res.json({ ok: true });
   } catch (err) {
     console.error(err);

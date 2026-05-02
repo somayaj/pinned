@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <title>PIN it — map, pin and task</title>
+  <defs>
+    <linearGradient id="logoPinGrad" x1="36" y1="14" x2="84" y2="96" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f87171"/>
+      <stop offset="1" stop-color="#dc2626"/>
+    </linearGradient>
+    <linearGradient id="taskChipGrad" x1="78" y1="78" x2="118" y2="118">
+      <stop stop-color="#ef4444"/>
+      <stop offset="1" stop-color="#b91c1c"/>
+    </linearGradient>
+    <filter id="pinDrop" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#991b1b" flood-opacity="0.28"/>
+    </filter>
+    <filter id="mapLift" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#64748b" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+
+  <!-- Map card -->
+  <rect
+    x="10"
+    y="18"
+    width="108"
+    height="92"
+    rx="18"
+    fill="#f8fafc"
+    stroke="#e2e8f0"
+    stroke-width="2"
+    filter="url(#mapLift)"
+  />
+  <!-- Streets / terrain lines -->
+  <path
+    d="M22 40c16-10 34-10 50 0s34 10 50 0"
+    stroke="#cbd5e1"
+    stroke-width="1.6"
+    fill="none"
+    stroke-linecap="round"
+  />
+  <path
+    d="M22 56h84"
+    stroke="#cbd5e1"
+    stroke-width="1.2"
+    opacity="0.75"
+  />
+  <path
+    d="M26 72c22 8 44 8 66 0"
+    stroke="#cbd5e1"
+    stroke-width="1.4"
+    fill="none"
+    stroke-linecap="round"
+    opacity="0.85"
+  />
+  <path
+    d="M30 88c18 6 36 6 54 0"
+    stroke="#cbd5e1"
+    stroke-width="1.2"
+    fill="none"
+    opacity="0.65"
+  />
+  <!-- subtle map markers -->
+  <circle cx="32" cy="86" r="2.5" fill="#94a3b8" opacity="0.45"/>
+  <circle cx="96" cy="82" r="2.5" fill="#94a3b8" opacity="0.4"/>
+
+  <!-- Location pin (on the map) — same silhouette as pin-it-mark -->
+  <g filter="url(#pinDrop)">
+    <path
+      fill="url(#logoPinGrad)"
+      d="M64 20c-16.5 0-30 13.2-30 29.5C34 72 64 108 64 108s30-36 30-58.5C94 33.2 80.5 20 64 20zm0 42a14 14 0 110-28 14 14 0 010 28z"
+    />
+    <circle cx="64" cy="49.5" r="9" fill="white" opacity="0.95"/>
+  </g>
+
+  <!-- Task / checklist badge -->
+  <g transform="translate(70, 72)">
+    <rect
+      width="46"
+      height="46"
+      rx="13"
+      fill="url(#taskChipGrad)"
+      stroke="#fecaca"
+      stroke-width="1.5"
+    />
+    <!-- mini document -->
+    <rect x="10" y="11" width="26" height="24" rx="3" fill="white" opacity="0.95"/>
+    <path d="M14 17h18M14 22h18M14 27h12" stroke="#fecaca" stroke-width="1.8" stroke-linecap="round"/>
+    <!-- check on task line -->
+    <circle cx="30" cy="27" r="5.5" fill="#dc2626"/>
+    <path
+      d="M27.2 27l1.6 1.6 3.4-4.2"
+      stroke="white"
+      stroke-width="1.6"
+      fill="none"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+  </g>
+</svg>

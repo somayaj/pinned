@@ -157,6 +157,27 @@ export async function deleteTask(
   }
 }
 
+/** Deletes all reminders for the current user. Saved places are kept. */
+export async function deleteAllTasks(
+  apiBase: string,
+  accessToken: string
+): Promise<Task[]> {
+  const base = apiBase.replace(/\/$/, "");
+  const res = await fetch(`${base}/tasks`, {
+    method: "DELETE",
+    headers: authHeaders(accessToken),
+  });
+  if (res.status === 401) {
+    throw new Error("session_expired");
+  }
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(t || `Delete all failed: ${res.status}`);
+  }
+  const data = (await res.json()) as { tasks: Task[] };
+  return data.tasks;
+}
+
 export type WebPushTestResult = {
   vapidConfigured: boolean;
   subscriptions: number;
@@ -195,6 +216,47 @@ export async function nudgeTask(
   if (!res.ok) {
     throw new Error(`Nudge failed: ${res.status}`);
   }
+}
+
+export type UserProfile = {
+  id: string;
+  email: string | null;
+  name: string | null;
+  picture: string | null;
+  phoneE164: string | null;
+  smsAlerts: boolean;
+};
+
+export async function fetchUserProfile(
+  apiBase: string,
+  accessToken: string
+): Promise<UserProfile> {
+  const res = await fetch(`${apiBase.replace(/\/$/, "")}/auth/profile`, {
+    headers: authHeaders(accessToken),
+  });
+  if (res.status === 401) throw new Error("session_expired");
+  if (!res.ok) throw new Error(`Profile failed: ${res.status}`);
+  const data = (await res.json()) as { user: UserProfile };
+  return data.user;
+}
+
+export async function patchUserProfile(
+  apiBase: string,
+  accessToken: string,
+  body: { phoneE164?: string | null; smsAlerts?: boolean }
+): Promise<UserProfile> {
+  const res = await fetch(`${apiBase.replace(/\/$/, "")}/auth/profile`, {
+    method: "PATCH",
+    headers: authHeaders(accessToken, true),
+    body: JSON.stringify(body),
+  });
+  if (res.status === 401) throw new Error("session_expired");
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(t || `Profile update failed: ${res.status}`);
+  }
+  const data = (await res.json()) as { user: UserProfile };
+  return data.user;
 }
 
 export async function exchangeGoogleIdToken(

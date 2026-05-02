@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { PlaceMarkerIcon } from "../components/PlaceMarkerIcon";
 import { ReminderTimeField } from "../components/ReminderTimeField";
 import { useTasks } from "../context/TasksContext";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -64,9 +65,15 @@ export function AddTaskScreen({ navigation, route }: Props) {
         keyboardShouldPersistTaps="handled"
         contentContainerClassName="pb-8"
       >
-        <Text className="mt-2 text-sm text-slate-500">
-          At <Text className="font-semibold text-slate-800">{locationName}</Text>
-        </Text>
+        <View className="mt-2 flex-row items-center gap-2">
+          <View className="rounded-lg bg-pin-50 p-1.5">
+            <PlaceMarkerIcon size={20} />
+          </View>
+          <Text className="flex-1 text-sm text-slate-500">
+            At{" "}
+            <Text className="font-semibold text-slate-800">{locationName}</Text>
+          </Text>
+        </View>
 
         <Text className="mt-6 text-xs font-medium uppercase text-slate-500">
           Reminder
@@ -101,7 +108,7 @@ export function AddTaskScreen({ navigation, route }: Props) {
         <Pressable
           onPress={() => void save()}
           disabled={busy}
-          className="mt-8 items-center rounded-xl bg-sky-600 py-4 active:bg-sky-700 disabled:opacity-60"
+          className="mt-8 items-center rounded-xl bg-pin-600 py-4 active:bg-pin-700 disabled:opacity-60"
         >
           {busy ? (
             <ActivityIndicator color="#fff" />

@@ -56,7 +56,7 @@ async function presentReminderForTask(task: Task): Promise<ReminderPresentation>
       if (Notification.permission === "granted") {
         const origin =
           typeof window !== "undefined" ? window.location.origin : "";
-        const icon = `${origin}/pinned-nudge-icon.svg`;
+        const icon = `${origin}/pin-it-logo.svg`;
         const tag = `${task.id}-${Date.now()}`;
         playPinnedAlertSound();
         new Notification("Pinned", {

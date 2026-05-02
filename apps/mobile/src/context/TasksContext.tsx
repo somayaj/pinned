@@ -62,6 +62,8 @@ type TasksContextValue = {
   }) => Promise<Location>;
   removeLocation: (id: string) => Promise<void>;
   removeTask: (id: string) => Promise<void>;
+  /** Remove every reminder; saved places are kept. */
+  deleteAllTasks: () => Promise<void>;
   /** Web: in-app banner when server broadcasts task_alert (app-like feedback in the tab). */
   taskAlert: { task: Task; reason: string } | null;
   /** Close the banner; nudges and alerts keep working. */
@@ -373,6 +375,15 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     [apiBase, accessToken]
   );
 
+  const deleteAllTasks = useCallback(async () => {
+    if (!accessToken) return;
+    const list = await api.deleteAllTasks(apiBase, accessToken);
+    setTasks(list);
+    setReminderMutedTaskIds([]);
+    taskAlertQueueRef.current = [];
+    setTaskAlert(null);
+  }, [apiBase, accessToken]);
+
   const value = useMemo(
     () => ({
       tasks,
@@ -387,6 +398,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       addLocation,
       removeLocation,
       removeTask,
+      deleteAllTasks,
       taskAlert,
       acknowledgeTaskAlert,
       dismissTaskAlertMuteReminders,
@@ -407,6 +419,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       addLocation,
       removeLocation,
       removeTask,
+      deleteAllTasks,
       taskAlert,
       acknowledgeTaskAlert,
       dismissTaskAlertMuteReminders,
