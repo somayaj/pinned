@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
+import { sendWebPushTest } from "../push/sendWebPush.js";
 import * as store from "../store.js";
 
 const subscribeBody = z.object({
@@ -45,6 +46,17 @@ export async function postPushSubscription(
 const deleteBody = z.object({
   endpoint: z.string().url().optional(),
 });
+
+export async function postPushTest(req: Request, res: Response): Promise<void> {
+  const userId = req.userId!;
+  try {
+    const result = await sendWebPushTest(userId);
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "web_push_test_failed" });
+  }
+}
 
 export async function deletePushSubscription(
   req: Request,

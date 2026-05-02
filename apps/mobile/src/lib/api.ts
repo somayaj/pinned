@@ -63,6 +63,32 @@ export async function deleteTask(
   }
 }
 
+export type WebPushTestResult = {
+  vapidConfigured: boolean;
+  subscriptions: number;
+  sent: number;
+  failed: number;
+};
+
+/** Web only — verify VAPID + subscription without entering a geofence. */
+export async function postWebPushTest(
+  apiBase: string,
+  accessToken: string
+): Promise<WebPushTestResult> {
+  const res = await fetch(`${apiBase.replace(/\/$/, "")}/push/test`, {
+    method: "POST",
+    headers: authHeaders(accessToken),
+  });
+  if (res.status === 401) {
+    throw new Error("session_expired");
+  }
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(t || `Test push failed: ${res.status}`);
+  }
+  return res.json() as Promise<WebPushTestResult>;
+}
+
 export async function nudgeTask(
   apiBase: string,
   accessToken: string,

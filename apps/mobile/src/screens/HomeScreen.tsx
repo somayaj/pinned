@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Platform,
   Pressable,
@@ -10,6 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../context/AuthContext";
+import { postWebPushTest } from "../lib/api";
 import { useTasks } from "../context/TasksContext";
 import { formatDistance, distanceMeters } from "../lib/geo";
 import { usePinReminders } from "../hooks/usePinReminders";
@@ -142,8 +144,9 @@ export function HomeScreen({ navigation }: Props) {
             Background browser alerts
           </Text>
           <Text className="mt-1 text-xs text-slate-600">
-            Get a push when you enter a pin (e.g. from your phone). Requires VAPID
-            keys on the server. Tab can be in the background.
+            Pushes are sent when the server receives a location “nudge” (you entered
+            the pin radius with Reminders on). Use “Send test” to verify VAPID +
+            this browser without moving. Railway must set WEB_PUSH_* env vars.
           </Text>
           <View className="mt-2 flex-row flex-wrap gap-2">
             <Pressable
@@ -158,7 +161,19 @@ export function HomeScreen({ navigation }: Props) {
                       setWebPushOn(false);
                     } else {
                       const r = await subscribeToWebPush(accessToken);
-                      if (r.ok) setWebPushOn(true);
+                      if (r.ok) {
+                        setWebPushOn(true);
+                      } else if (r.error === "no_server_keys") {
+                        Alert.alert(
+                          "Web Push",
+                          "Server is missing WEB_PUSH_PUBLIC_KEY / WEB_PUSH_PRIVATE_KEY (check Railway)."
+                        );
+                      } else if (r.error === "denied") {
+                        Alert.alert(
+                          "Notifications",
+                          "Allow notifications for this site to enable push."
+                        );
+                      }
                     }
                   } finally {
                     setWebPushBusy(false);
@@ -178,6 +193,48 @@ export function HomeScreen({ navigation }: Props) {
             <Text className="self-center text-xs text-slate-500">
               {webPushOn ? "On" : "Off"}
             </Text>
+            {webPushOn ? (
+              <Pressable
+                disabled={webPushBusy}
+                onPress={() => {
+                  if (!accessToken) return;
+                  setWebPushBusy(true);
+                  void (async () => {
+                    try {
+                      const r = await postWebPushTest(apiBase, accessToken);
+                      if (!r.vapidConfigured) {
+                        Alert.alert(
+                          "Web Push",
+                          "Server has no VAPID keys. Set WEB_PUSH_PUBLIC_KEY, WEB_PUSH_PRIVATE_KEY, WEB_PUSH_SUBJECT on Railway and redeploy."
+                        );
+                      } else if (r.subscriptions === 0) {
+                        Alert.alert(
+                          "Web Push",
+                          "No subscription stored. Turn push off and Enable again."
+                        );
+                      } else {
+                        Alert.alert(
+                          "Web Push test",
+                          `Sent: ${r.sent}, failed: ${r.failed}, subscriptions: ${r.subscriptions}. Check for a system notification (and OS Focus / Do Not Disturb).`
+                        );
+                      }
+                    } catch (e) {
+                      Alert.alert(
+                        "Web Push",
+                        e instanceof Error ? e.message : "Test failed"
+                      );
+                    } finally {
+                      setWebPushBusy(false);
+                    }
+                  })();
+                }}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 active:bg-slate-50 disabled:opacity-60"
+              >
+                <Text className="text-sm font-medium text-slate-800">
+                  Send test
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
         </View>
       ) : null}

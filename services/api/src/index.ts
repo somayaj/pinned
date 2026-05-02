@@ -13,6 +13,7 @@ import {
   deletePushSubscription,
   getVapidPublic,
   postPushSubscription,
+  postPushTest,
 } from "./routes/push.js";
 import { taskRouter } from "./routes/tasks.js";
 import * as store from "./store.js";
@@ -49,6 +50,7 @@ app.get("/geocode", geocodeHandler);
 
 app.get("/push/vapid-public", getVapidPublic);
 app.post("/push/subscribe", requireAuth, postPushSubscription);
+app.post("/push/test", requireAuth, postPushTest);
 app.delete("/push/subscribe", requireAuth, deletePushSubscription);
 
 app.use("/auth", authRouter);

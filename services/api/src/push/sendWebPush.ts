@@ -11,27 +11,43 @@ function ensureVapid(): boolean {
   const subject = (
     process.env.WEB_PUSH_SUBJECT ?? "mailto:push@localhost"
   ).trim();
-  if (!pub || !priv) return false;
+  if (!pub || !priv) {
+    console.warn(
+      "[web-push] WEB_PUSH_PUBLIC_KEY / WEB_PUSH_PRIVATE_KEY not set — push disabled"
+    );
+    return false;
+  }
   webpush.setVapidDetails(subject, pub, priv);
   configured = true;
   return true;
 }
 
-/** Called when user enters a pin zone — also notifies subscribed browsers (tab may be closed). */
-export async function sendWebPushZoneEntry(
+function logWebPushError(endpoint: string, err: unknown): void {
+  const e = err as {
+    statusCode?: number;
+    message?: string;
+    body?: string;
+    endpoint?: string;
+  };
+  console.error(
+    "[web-push] send failed",
+    e.statusCode ?? "?",
+    e.message,
+    e.body ?? "",
+    endpoint.slice(0, 48) + "…"
+  );
+}
+
+async function sendPayloadToAllSubscriptions(
   userId: string,
-  task: Task
-): Promise<void> {
-  if (!ensureVapid()) return;
+  payload: string
+): Promise<{ sent: number; failed: number; subscriptionCount: number }> {
+  if (!ensureVapid()) return { sent: 0, failed: 0, subscriptionCount: 0 };
   const subs = await store.listWebPushSubscriptions(userId);
-  if (subs.length === 0) return;
+  if (subs.length === 0) return { sent: 0, failed: 0, subscriptionCount: 0 };
 
-  const payload = JSON.stringify({
-    title: "Pinned",
-    body: `You're at: ${task.title}`,
-    taskId: task.id,
-  });
-
+  let sent = 0;
+  let failed = 0;
   for (const sub of subs) {
     try {
       await webpush.sendNotification(
@@ -42,11 +58,68 @@ export async function sendWebPushZoneEntry(
         payload,
         { TTL: 86_400 }
       );
+      sent++;
     } catch (err: unknown) {
+      failed++;
+      logWebPushError(sub.endpoint, err);
       const code = (err as { statusCode?: number }).statusCode;
       if (code === 410 || code === 404) {
         await store.deleteWebPushSubscriptionByEndpoint(sub.endpoint);
       }
     }
   }
+  return { sent, failed, subscriptionCount: subs.length };
+}
+
+/** Called when user enters a pin zone — also notifies subscribed browsers (tab may be closed). */
+export async function sendWebPushZoneEntry(
+  userId: string,
+  task: Task
+): Promise<void> {
+  const payload = JSON.stringify({
+    title: "Pinned",
+    body: `You're at: ${task.title}`,
+    taskId: task.id,
+  });
+  const { sent, failed, subscriptionCount } = await sendPayloadToAllSubscriptions(
+    userId,
+    payload
+  );
+  if (subscriptionCount > 0) {
+    console.log(
+      `[web-push] zone_entry task=${task.title} sent=${sent} failed=${failed} subs=${subscriptionCount}`
+    );
+  }
+}
+
+/** Authenticated test — does not require being in a geofence. */
+export async function sendWebPushTest(userId: string): Promise<{
+  vapidConfigured: boolean;
+  subscriptions: number;
+  sent: number;
+  failed: number;
+}> {
+  if (!ensureVapid()) {
+    return {
+      vapidConfigured: false,
+      subscriptions: 0,
+      sent: 0,
+      failed: 0,
+    };
+  }
+  const payload = JSON.stringify({
+    title: "Pinned",
+    body: "Test push — Web Push is working.",
+    taskId: null,
+  });
+  const { sent, failed, subscriptionCount } = await sendPayloadToAllSubscriptions(
+    userId,
+    payload
+  );
+  return {
+    vapidConfigured: true,
+    subscriptions: subscriptionCount,
+    sent,
+    failed,
+  };
 }
