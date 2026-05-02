@@ -1,17 +1,20 @@
 import type { WebSocket } from "ws";
 import type { WsOutboundMessage } from "./types.js";
 
-const clients = new Set<WebSocket>();
+const clients = new Map<WebSocket, string>();
 
-export function addClient(ws: WebSocket): void {
-  clients.add(ws);
+export function addClient(ws: WebSocket, userId: string): void {
+  clients.set(ws, userId);
   ws.on("close", () => clients.delete(ws));
 }
 
-export function broadcast(message: WsOutboundMessage): void {
+export function broadcastToUser(
+  userId: string,
+  message: WsOutboundMessage
+): void {
   const payload = JSON.stringify(message);
-  for (const client of clients) {
-    if (client.readyState === 1 /* OPEN */) {
+  for (const [client, uid] of clients) {
+    if (uid === userId && client.readyState === 1 /* OPEN */) {
       client.send(payload);
     }
   }

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import * as store from "../store.js";
-import { broadcast } from "../wsHub.js";
+import { broadcastToUser } from "../wsHub.js";
 
 export const taskRouter = Router();
 
@@ -12,9 +12,10 @@ const createBody = z.object({
   radiusMeters: z.number().min(10).max(50_000),
 });
 
-taskRouter.get("/", async (_req, res) => {
+taskRouter.get("/", async (req, res) => {
+  const userId = req.userId!;
   try {
-    const tasks = await store.listTasks();
+    const tasks = await store.listTasks(userId);
     res.json({ tasks });
   } catch (err) {
     console.error(err);
@@ -23,16 +24,17 @@ taskRouter.get("/", async (_req, res) => {
 });
 
 taskRouter.post("/", async (req, res) => {
+  const userId = req.userId!;
   const parsed = createBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
   try {
-    const task = await store.createTask(parsed.data);
-    const tasks = await store.listTasks();
-    broadcast({ type: "tasks_updated", tasks });
-    broadcast({
+    const task = await store.createTask(userId, parsed.data);
+    const tasks = await store.listTasks(userId);
+    broadcastToUser(userId, { type: "tasks_updated", tasks });
+    broadcastToUser(userId, {
       type: "task_alert",
       task,
       reason: "new_task",
@@ -45,14 +47,15 @@ taskRouter.post("/", async (req, res) => {
 });
 
 taskRouter.delete("/:id", async (req, res) => {
+  const userId = req.userId!;
   try {
-    const ok = await store.deleteTask(req.params.id);
+    const ok = await store.deleteTask(userId, req.params.id);
     if (!ok) {
       res.status(404).json({ error: "not_found" });
       return;
     }
-    const tasks = await store.listTasks();
-    broadcast({ type: "tasks_updated", tasks });
+    const tasks = await store.listTasks(userId);
+    broadcastToUser(userId, { type: "tasks_updated", tasks });
     res.status(204).send();
   } catch (err) {
     console.error(err);
@@ -60,15 +63,15 @@ taskRouter.delete("/:id", async (req, res) => {
   }
 });
 
-/** Called when the device enters the pin radius (optional sync with other clients). */
 taskRouter.post("/:id/nudge", async (req, res) => {
+  const userId = req.userId!;
   try {
-    const task = await store.getTask(req.params.id);
+    const task = await store.getTask(userId, req.params.id);
     if (!task) {
       res.status(404).json({ error: "not_found" });
       return;
     }
-    broadcast({
+    broadcastToUser(userId, {
       type: "task_alert",
       task,
       reason: "zone_entry",

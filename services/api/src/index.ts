@@ -3,11 +3,14 @@ import express from "express";
 import { createServer } from "http";
 import { nanoid } from "nanoid";
 import { WebSocketServer } from "ws";
+import { verifySessionToken } from "./auth/jwt.js";
 import { migrate } from "./db/migrate.js";
+import { requireAuth } from "./middleware/requireAuth.js";
+import { authRouter } from "./routes/auth.js";
 import { taskRouter } from "./routes/tasks.js";
 import * as store from "./store.js";
 import type { WsOutboundMessage } from "./types.js";
-import { addClient, broadcast, clientCount } from "./wsHub.js";
+import { addClient, broadcastToUser, clientCount } from "./wsHub.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
 
@@ -35,15 +38,32 @@ app.get("/health", async (_req, res) => {
   }
 });
 
-app.use("/tasks", taskRouter);
+app.use("/auth", authRouter);
+app.use("/tasks", requireAuth, taskRouter);
 
 const server = createServer(app);
 
 const wss = new WebSocketServer({ server, path: "/ws" });
 
-wss.on("connection", (ws) => {
+wss.on("connection", (ws, req) => {
+  let userId: string;
+  try {
+    const host = req.headers.host ?? "localhost";
+    const url = new URL(req.url ?? "/", `http://${host}`);
+    const token = url.searchParams.get("token");
+    if (!token) {
+      ws.close(4401, "Unauthorized");
+      return;
+    }
+    const { sub } = verifySessionToken(token);
+    userId = sub;
+  } catch {
+    ws.close(4401, "Unauthorized");
+    return;
+  }
+
   const clientId = nanoid();
-  addClient(ws);
+  addClient(ws, userId);
   const hello: WsOutboundMessage = {
     type: "connected",
     clientId,
@@ -52,7 +72,7 @@ wss.on("connection", (ws) => {
 
   void (async () => {
     try {
-      const tasks = await store.listTasks();
+      const tasks = await store.listTasks(userId);
       const snapshot: WsOutboundMessage = {
         type: "tasks_updated",
         tasks,
@@ -85,7 +105,7 @@ async function start(): Promise<void> {
   await migrate();
   server.listen(PORT, () => {
     console.log(`pinned-api listening on http://localhost:${PORT}`);
-    console.log(`WebSocket: ws://localhost:${PORT}/ws`);
+    console.log(`WebSocket: ws://localhost:${PORT}/ws?token=JWT`);
   });
 }
 
