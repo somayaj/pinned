@@ -82,7 +82,9 @@ export function usePinReminders(
       const locPerm = await Location.requestForegroundPermissionsAsync();
       if (locPerm.status !== "granted" || cancelled) return;
 
-      await Notifications.requestPermissionsAsync();
+      if (Platform.OS !== "web") {
+        await Notifications.requestPermissionsAsync();
+      }
 
       if (cancelled) return;
 
