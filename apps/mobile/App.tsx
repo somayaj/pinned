@@ -34,7 +34,7 @@ function AuthenticatedApp() {
 export default function App() {
   useEffect(() => {
     if (Platform.OS === "web" && typeof document !== "undefined") {
-      document.title = "PinIt";
+      document.title = "Pin it";
     }
   }, []);
 

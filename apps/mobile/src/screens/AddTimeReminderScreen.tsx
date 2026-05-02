@@ -60,7 +60,7 @@ export function AddTimeReminderScreen({ navigation }: Props) {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-red-50" edges={["bottom"]}>
+    <SafeAreaView className="flex-1 bg-slate-100" edges={["bottom"]}>
       <ScrollView className="flex-1 px-4" contentContainerClassName="pb-8">
         <Text className="mt-2 text-sm text-slate-500">
           No map — we’ll nudge on a schedule while reminders are on.
@@ -73,7 +73,7 @@ export function AddTimeReminderScreen({ navigation }: Props) {
           onChangeText={setTitle}
           placeholder="e.g. Call dentist"
           placeholderTextColor="#94a3b8"
-          className="mt-2 rounded-xl border border-red-100 bg-white px-4 py-3 text-base text-slate-900"
+          className="mt-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900"
         />
         <Text className="mt-6 text-xs font-medium uppercase text-slate-500">
           Remind at

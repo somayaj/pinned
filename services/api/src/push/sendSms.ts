@@ -18,18 +18,18 @@ export function buildTaskAlertSmsBody(task: Task, reason: string): string {
 
   if (reason === "new_task") {
     return atPlace
-      ? `PinIt: New pin — ${task.title}${detail}`
-      : `PinIt: New reminder — ${task.title}${detail}`;
+      ? `Pin it: New pin — ${task.title}${detail}`
+      : `Pin it: New reminder — ${task.title}${detail}`;
   }
   if (reason === "time_reminder") {
-    return `PinIt: Reminder — ${task.title}${detail}`;
+    return `Pin it: Reminder — ${task.title}${detail}`;
   }
   if (reason === "zone_entry") {
     return atPlace
-      ? `PinIt: You're at — ${task.title}${detail}`
-      : `PinIt: ${task.title}${detail}`;
+      ? `Pin it: You're at — ${task.title}${detail}`
+      : `Pin it: ${task.title}${detail}`;
   }
-  return `PinIt: ${task.title}${detail}`;
+  return `Pin it: ${task.title}${detail}`;
 }
 
 /**

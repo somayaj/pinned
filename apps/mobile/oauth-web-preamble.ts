@@ -7,7 +7,7 @@ import { Platform } from "react-native";
 
 if (Platform.OS === "web") {
   if (typeof document !== "undefined") {
-    document.title = "PinIt";
+    document.title = "Pin it";
   }
   try {
     WebBrowser.maybeCompleteAuthSession({

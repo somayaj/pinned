@@ -20,7 +20,7 @@ function PinItLogoMark() {
   return (
     <View
       className="h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-sm shadow-pin-200/40"
-      accessibilityLabel="PinIt — map, pin, and tasks"
+      accessibilityLabel="Pin it — map, pin, and tasks"
       accessibilityRole="image"
     >
       <PinItLogoIcon size={44} />
@@ -75,7 +75,7 @@ export function SignInScreen() {
                     accessibilityRole="header"
                   >
                     <Text className="text-red-600">Pin</Text>
-                    <Text className="text-slate-900">It</Text>
+                    <Text className="text-slate-900"> it</Text>
                   </Text>
                   <View className="mt-2 h-1 w-9 rounded-full bg-red-500" />
                   <Text className="mt-4 text-center text-[15px] leading-6 text-slate-600">

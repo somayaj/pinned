@@ -23,14 +23,14 @@ export function AppNavigator() {
       key={accessToken ?? "nav"}
       documentTitle={{
         formatter: (options) =>
-          options?.title ? `${options.title} · PinIt` : "PinIt",
+          options?.title ? `${options.title} · Pin it` : "Pin it",
       }}
     >
       <Stack.Navigator
         initialRouteName="Home"
         screenOptions={{
-          contentStyle: { backgroundColor: "#fef2f2" },
-          headerStyle: { backgroundColor: "#fef2f2" },
+          contentStyle: { backgroundColor: "#f1f5f9" },
+          headerStyle: { backgroundColor: "#f1f5f9" },
           headerShadowVisible: false,
           headerTintColor: "#0f172a",
           headerTitleStyle: { color: "#0f172a", fontWeight: "600" },

@@ -34,7 +34,7 @@ function PinItLogoMark() {
   return (
     <View
       className="h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-sm shadow-pin-200/40"
-      accessibilityLabel="PinIt — map, pin, and tasks"
+      accessibilityLabel="Pin it — map, pin, and tasks"
       accessibilityRole="image"
     >
       <PinItLogoIcon size={44} />
@@ -158,8 +158,8 @@ export function HomeScreen({ navigation }: Props) {
   }, [listScope, loadScopedList, refresh]);
 
   return (
-    <SafeAreaView className="flex-1 bg-red-50" edges={["top"]}>
-      <View className="border-b border-red-100 bg-red-50 px-4 pb-4 pt-3">
+    <SafeAreaView className="flex-1 bg-slate-100" edges={["top"]}>
+      <View className="border-b border-slate-200 bg-slate-100 px-4 pb-4 pt-3">
         <View className="flex-row items-center justify-between">
           <View className="min-w-0 flex-1 flex-row items-center gap-3 pr-2">
             <PinItLogoMark />
@@ -169,7 +169,7 @@ export function HomeScreen({ navigation }: Props) {
                 accessibilityRole="header"
               >
                 <Text className="text-red-600">Pin</Text>
-                <Text className="text-slate-900">It</Text>
+                <Text className="text-slate-900"> it</Text>
               </Text>
               <View className="mt-1.5 h-1 w-9 rounded-full bg-red-500" />
               <Text
@@ -188,19 +188,19 @@ export function HomeScreen({ navigation }: Props) {
             />
             <Pressable
               onPress={() => navigation.navigate("Stocks")}
-              className="rounded-lg border border-red-100 bg-white/90 px-3 py-2 active:bg-red-50"
+              className="rounded-lg border border-slate-200 bg-white/90 px-3 py-2 active:bg-slate-200/80"
             >
               <Text className="text-sm font-medium text-slate-700">Stocks</Text>
             </Pressable>
             <Pressable
               onPress={() => navigation.navigate("News")}
-              className="rounded-lg border border-red-100 bg-white/90 px-3 py-2 active:bg-red-50"
+              className="rounded-lg border border-slate-200 bg-white/90 px-3 py-2 active:bg-slate-200/80"
             >
               <Text className="text-sm font-medium text-slate-700">News</Text>
             </Pressable>
             <Pressable
               onPress={() => navigation.navigate("Settings")}
-              className="rounded-lg border border-red-100 bg-white/90 px-3 py-2 active:bg-red-50"
+              className="rounded-lg border border-slate-200 bg-white/90 px-3 py-2 active:bg-slate-200/80"
             >
               <Text className="text-sm font-medium text-slate-700">
                 Settings
@@ -208,7 +208,7 @@ export function HomeScreen({ navigation }: Props) {
             </Pressable>
             <Pressable
               onPress={() => void signOut()}
-              className="rounded-lg border border-red-100 bg-white/90 px-3 py-2 active:bg-red-50"
+              className="rounded-lg border border-slate-200 bg-white/90 px-3 py-2 active:bg-slate-200/80"
             >
               <Text className="text-sm font-medium text-slate-700">Out</Text>
             </Pressable>
@@ -243,7 +243,7 @@ export function HomeScreen({ navigation }: Props) {
               className={`rounded-full border px-3 py-1.5 ${
                 listScope === key
                   ? "border-red-600 bg-red-50"
-                  : "border-red-100 bg-white"
+                  : "border-slate-200 bg-white"
               }`}
             >
               <Text
@@ -373,7 +373,7 @@ export function HomeScreen({ navigation }: Props) {
                     name: place.name,
                   })
                 }
-                className="mb-3 mt-3 rounded-2xl border border-red-100 bg-white p-4 active:bg-red-50/80"
+                className="mb-3 mt-3 rounded-2xl border border-slate-200 bg-white p-4 active:bg-slate-100"
               >
                 <View className="flex-row items-center gap-2.5">
                   <View className="rounded-xl bg-pin-50 p-2">
@@ -466,7 +466,7 @@ export function HomeScreen({ navigation }: Props) {
             onPress={() => setAddMenuOpen(false)}
             className="absolute inset-0 bg-black/50"
           />
-          <View className="relative z-10 rounded-t-2xl border-t border-red-100 bg-red-50 px-4 pb-8 pt-4">
+          <View className="relative z-10 rounded-t-2xl border-t border-slate-200 bg-slate-100 px-4 pb-8 pt-4">
             <Text className="text-center text-base font-semibold text-slate-900">
               Add
             </Text>
@@ -487,7 +487,7 @@ export function HomeScreen({ navigation }: Props) {
                 setAddMenuOpen(false);
                 navigation.navigate("AddTimeReminder");
               }}
-              className="mt-3 items-center rounded-xl border border-red-100 bg-white py-4 active:bg-red-50"
+              className="mt-3 items-center rounded-xl border border-slate-200 bg-white py-4 active:bg-slate-100"
             >
               <Text className="text-base font-semibold text-slate-800">
                 Time reminder

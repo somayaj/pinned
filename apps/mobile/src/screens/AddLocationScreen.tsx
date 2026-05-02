@@ -32,7 +32,7 @@ export function AddLocationScreen({ navigation }: Props) {
       headerRight: () => (
         <Pressable
           onPress={() => navigation.navigate("Home")}
-          className="mr-2 rounded-lg border border-red-100 bg-white/90 px-3 py-2 active:bg-red-50"
+          className="mr-2 rounded-lg border border-slate-200 bg-white/90 px-3 py-2 active:bg-slate-100"
         >
           <Text className="text-sm font-medium text-sky-700">Home</Text>
         </Pressable>
@@ -142,7 +142,7 @@ export function AddLocationScreen({ navigation }: Props) {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-red-50" edges={["bottom"]}>
+    <SafeAreaView className="flex-1 bg-slate-100" edges={["bottom"]}>
       <ScrollView
         className="flex-1 px-4"
         keyboardShouldPersistTaps="handled"
@@ -164,7 +164,7 @@ export function AddLocationScreen({ navigation }: Props) {
           onChangeText={setName}
           placeholder="e.g. Home, Gym"
           placeholderTextColor="#94a3b8"
-          className="mt-2 rounded-xl border border-red-100 bg-white px-4 py-3 text-base text-slate-900"
+          className="mt-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900"
         />
 
         <Text className="mt-6 text-xs font-medium uppercase text-slate-500">
@@ -178,7 +178,7 @@ export function AddLocationScreen({ navigation }: Props) {
           multiline
           numberOfLines={3}
           textAlignVertical="top"
-          className="mt-2 min-h-[80px] rounded-xl border border-red-100 bg-white px-4 py-3 text-base text-slate-900"
+          className="mt-2 min-h-[80px] rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900"
         />
 
         <Text className="mt-6 text-xs font-medium uppercase text-slate-500">
@@ -188,7 +188,7 @@ export function AddLocationScreen({ navigation }: Props) {
           value={radius}
           onChangeText={setRadius}
           keyboardType="number-pad"
-          className="mt-2 rounded-xl border border-red-100 bg-white px-4 py-3 text-base text-slate-900"
+          className="mt-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900"
         />
 
         <Text className="mt-6 text-xs font-medium uppercase text-slate-500">
@@ -200,7 +200,7 @@ export function AddLocationScreen({ navigation }: Props) {
           placeholder="e.g. 94102 or 1 Apple Park Way"
           placeholderTextColor="#94a3b8"
           autoCapitalize="words"
-          className="mt-2 rounded-xl border border-red-100 bg-white px-4 py-3 text-base text-slate-900"
+          className="mt-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900"
         />
         <View className="mt-3 flex-row gap-2">
           <Pressable

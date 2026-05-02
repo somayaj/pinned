@@ -1,5 +1,5 @@
 /* global self */
-/* PinIt — Web Push. OS shows banners outside the tab (not inside the page). */
+/* Pin it — Web Push. OS shows banners outside the tab (not inside the page). */
 
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
@@ -11,7 +11,7 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("push", (event) => {
   let payload = {
-    title: "PinIt",
+    title: "Pin it",
     body: "Reminder",
     taskId: null,
   };
@@ -23,7 +23,7 @@ self.addEventListener("push", (event) => {
   } catch (e) {
     console.error("[pinned-sw] push payload parse", e);
   }
-  const title = payload.title || "PinIt";
+  const title = payload.title || "Pin it";
   const body = payload.body || "You have a pin reminder";
   const origin = self.location.origin;
   const iconUrl = `${origin}/pin-it-logo.svg`;

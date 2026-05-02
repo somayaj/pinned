@@ -36,7 +36,7 @@ export function TaskCard({
       : null;
 
   return (
-    <View className="mb-3 rounded-2xl border border-red-100 bg-white p-4 shadow-sm">
+    <View className="mb-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <View className="flex-row items-start gap-2">
         {item.locationId ? (
           <View className="mt-0.5 rounded-lg bg-pin-50 p-1">
@@ -110,7 +110,7 @@ export function TaskCard({
       {showActions && onRemove ? (
         <Pressable
           onPress={() => void onRemove(item.id)}
-          className="mt-3 self-start rounded-lg bg-red-50 px-3 py-2 active:bg-red-100"
+          className="mt-3 self-start rounded-lg bg-slate-100 px-3 py-2 active:bg-slate-200"
         >
           <Text className="text-sm font-medium text-red-700">Remove</Text>
         </Pressable>

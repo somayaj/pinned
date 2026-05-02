@@ -71,8 +71,8 @@ export function SettingsScreen({ navigation }: Props) {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-red-50">
-      <View className="flex-row items-center border-b border-red-100 bg-red-50 px-2 py-2">
+    <SafeAreaView className="flex-1 bg-slate-100">
+      <View className="flex-row items-center border-b border-slate-200 bg-slate-100 px-2 py-2">
         <Pressable onPress={() => navigation.goBack()} className="px-2 py-2">
           <Text className="text-pin-600">Back</Text>
         </Pressable>
@@ -86,7 +86,7 @@ export function SettingsScreen({ navigation }: Props) {
           SMS alerts
         </Text>
         <Text className="mt-1 text-sm text-slate-500">
-          Get a text for PinIt reminders (new task, zone entry, scheduled nudge).
+          Get a text for Pin it reminders (new task, zone entry, scheduled nudge).
           Requires Twilio on the server and your number in E.164 format.
         </Text>
         {profileLoading ? (
@@ -101,9 +101,9 @@ export function SettingsScreen({ navigation }: Props) {
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="phone-pad"
-              className="mt-3 rounded-xl border border-red-100 bg-white px-4 py-3 text-sm text-slate-900"
+              className="mt-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900"
             />
-            <View className="mt-4 flex-row items-center justify-between gap-3 rounded-xl border border-red-100 bg-white px-4 py-3">
+            <View className="mt-4 flex-row items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
               <Text className="flex-1 text-sm text-slate-800">
                 Send SMS for alerts
               </Text>

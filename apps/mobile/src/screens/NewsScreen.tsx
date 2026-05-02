@@ -48,14 +48,14 @@ function HeadlineBlock({
       <Text className={`text-xs font-bold uppercase tracking-wide ${accentClass}`}>
         {title}
       </Text>
-      <View className="mt-2 overflow-hidden rounded-xl border border-red-100 bg-white">
+      <View className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white">
         {items.map((h, i) => (
           <Pressable
             key={`${h.link}-${i}`}
             onPress={() => {
               if (h.link) void Linking.openURL(h.link);
             }}
-            className={`border-b border-red-50 px-3 py-3 last:border-b-0 active:bg-red-50/90`}
+            className={`border-b border-slate-100 px-3 py-3 last:border-b-0 active:bg-slate-100`}
           >
             <Text className="text-sm leading-snug text-slate-900">{h.title}</Text>
             {h.pubDate ? (
@@ -160,8 +160,8 @@ export function NewsScreen({ navigation }: Props) {
     : null;
 
   return (
-    <SafeAreaView className="flex-1 bg-red-50" edges={["bottom"]}>
-      <View className="flex-row items-center border-b border-red-100 bg-red-50 px-2 py-2">
+    <SafeAreaView className="flex-1 bg-slate-100" edges={["bottom"]}>
+      <View className="flex-row items-center border-b border-slate-200 bg-slate-100 px-2 py-2">
         <Pressable onPress={() => navigation.goBack()} className="px-2 py-2">
           <Text className="text-pin-600">Back</Text>
         </Pressable>
@@ -194,7 +194,7 @@ export function NewsScreen({ navigation }: Props) {
               className={`rounded-full border px-3 py-2 ${
                 pollMinutes === m
                   ? "border-pin-600 bg-pin-50"
-                  : "border-red-100 bg-white"
+                  : "border-slate-200 bg-white"
               }`}
             >
               <Text
