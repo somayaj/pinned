@@ -1,7 +1,8 @@
 {
   "expo": {
-    "name": "pingme",
-    "slug": "pingme",
+    "name": "Pinned",
+    "slug": "pinned",
+    "description": "Dropping a pin sets a reminder at a location.",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

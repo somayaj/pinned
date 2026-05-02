@@ -4,7 +4,10 @@ import { StyleSheet, Text, View } from 'react-native';
 export default function App() {
   return (
     <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
+      <Text style={styles.title}>Pinned</Text>
+      <Text style={styles.tagline}>
+        Dropping a pin sets a reminder at a location.
+      </Text>
       <StatusBar style="auto" />
     </View>
   );
@@ -16,5 +19,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  tagline: {
+    fontSize: 16,
+    color: '#444',
+    textAlign: 'center',
+    lineHeight: 22,
   },
 });
