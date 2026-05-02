@@ -1,6 +1,8 @@
 import React, { useCallback, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
+  Platform,
   Pressable,
   RefreshControl,
   Text,
@@ -11,6 +13,11 @@ import { useAuth } from "../context/AuthContext";
 import { useTasks } from "../context/TasksContext";
 import { formatDistance, distanceMeters } from "../lib/geo";
 import { usePinReminders } from "../hooks/usePinReminders";
+import {
+  hasWebPushSubscription,
+  subscribeToWebPush,
+  unsubscribeFromWebPush,
+} from "../lib/webPush";
 import * as Location from "expo-location";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/types";
@@ -26,8 +33,20 @@ export function HomeScreen({ navigation }: Props) {
     useTasks();
   const [loc, setLoc] = useState<{ lat: number; lon: number } | null>(null);
   const [remindersOn, setRemindersOn] = useState(true);
+  const [inAppBanner, setInAppBanner] = useState<Task | null>(null);
+  const [webPushOn, setWebPushOn] = useState(false);
+  const [webPushBusy, setWebPushBusy] = useState(false);
 
-  usePinReminders(tasks, apiBase, accessToken, remindersOn);
+  const onWebInAppFallback = useCallback((task: Task) => {
+    setInAppBanner(task);
+  }, []);
+
+  usePinReminders(tasks, apiBase, accessToken, remindersOn, onWebInAppFallback);
+
+  React.useEffect(() => {
+    if (Platform.OS !== "web" || !accessToken) return;
+    void hasWebPushSubscription().then(setWebPushOn);
+  }, [accessToken]);
 
   const updateLocation = useCallback(async () => {
     const { status } = await Location.getForegroundPermissionsAsync();
@@ -97,6 +116,70 @@ export function HomeScreen({ navigation }: Props) {
 
       {error ? (
         <Text className="mx-4 mt-2 text-sm text-red-600">{error}</Text>
+      ) : null}
+
+      {inAppBanner ? (
+        <View className="mx-4 mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+          <Text className="text-base font-semibold text-amber-950">
+            You&apos;re at: {inAppBanner.title}
+          </Text>
+          <Text className="mt-1 text-xs text-amber-900/90">
+            Browser notifications are blocked or unavailable. Allow notifications
+            for this site in the address bar to get alerts, or keep this tab open.
+          </Text>
+          <Pressable
+            onPress={() => setInAppBanner(null)}
+            className="mt-2 self-end rounded-lg bg-amber-100 px-3 py-1.5 active:bg-amber-200"
+          >
+            <Text className="text-sm font-medium text-amber-950">Dismiss</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {Platform.OS === "web" && accessToken ? (
+        <View className="mx-4 mt-3 rounded-xl border border-slate-200 bg-white p-3">
+          <Text className="text-xs font-medium uppercase text-slate-500">
+            Background browser alerts
+          </Text>
+          <Text className="mt-1 text-xs text-slate-600">
+            Get a push when you enter a pin (e.g. from your phone). Requires VAPID
+            keys on the server. Tab can be in the background.
+          </Text>
+          <View className="mt-2 flex-row flex-wrap gap-2">
+            <Pressable
+              disabled={webPushBusy}
+              onPress={() => {
+                if (!accessToken) return;
+                setWebPushBusy(true);
+                void (async () => {
+                  try {
+                    if (webPushOn) {
+                      await unsubscribeFromWebPush(accessToken);
+                      setWebPushOn(false);
+                    } else {
+                      const r = await subscribeToWebPush(accessToken);
+                      if (r.ok) setWebPushOn(true);
+                    }
+                  } finally {
+                    setWebPushBusy(false);
+                  }
+                })();
+              }}
+              className="rounded-lg bg-sky-600 px-3 py-2 active:bg-sky-700 disabled:opacity-60"
+            >
+              {webPushBusy ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text className="text-sm font-semibold text-white">
+                  {webPushOn ? "Turn off push" : "Enable push"}
+                </Text>
+              )}
+            </Pressable>
+            <Text className="self-center text-xs text-slate-500">
+              {webPushOn ? "On" : "Off"}
+            </Text>
+          </View>
+        </View>
       ) : null}
 
       <FlatList

@@ -16,9 +16,13 @@ function canUseBrowserNotifications(): boolean {
 
 /**
  * Web: `expo-notifications` does not show system banners reliably; use the Web Notifications API.
+ * If permission denied, caller can show an in-app banner via `onWebInAppFallback`.
  * Native: keep using expo-notifications.
  */
-async function showReminderNotification(task: Task): Promise<void> {
+async function showReminderNotification(
+  task: Task,
+  onWebInAppFallback?: (t: Task) => void
+): Promise<void> {
   const body = `You're at: ${task.title}`;
   if (canUseBrowserNotifications()) {
     try {
@@ -29,9 +33,11 @@ async function showReminderNotification(task: Task): Promise<void> {
         new Notification("Pinned", { body, tag: task.id });
         return;
       }
+      onWebInAppFallback?.(task);
     } catch {
-      /* fall through to expo */
+      onWebInAppFallback?.(task);
     }
+    return;
   }
   await Notifications.scheduleNotificationAsync({
     content: {
@@ -53,7 +59,8 @@ export function usePinReminders(
   tasks: Task[],
   apiBase: string,
   accessToken: string | null,
-  enabled: boolean
+  enabled: boolean,
+  onWebInAppFallback?: (task: Task) => void
 ) {
   const insideRef = useRef<Map<string, boolean>>(new Map());
   /** One notification per zone visit after time gate (if any). */
@@ -114,7 +121,7 @@ export function usePinReminders(
 
             notifiedRef.current.set(task.id, true);
             try {
-              await showReminderNotification(task);
+              await showReminderNotification(task, onWebInAppFallback);
               await api.nudgeTask(apiBase, accessToken, task.id);
             } catch {
               /* ignore */
@@ -129,5 +136,5 @@ export function usePinReminders(
       subRef.current?.remove();
       subRef.current = null;
     };
-  }, [tasks, apiBase, accessToken, enabled]);
+  }, [tasks, apiBase, accessToken, enabled, onWebInAppFallback]);
 }

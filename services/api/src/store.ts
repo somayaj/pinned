@@ -157,6 +157,54 @@ export async function deleteTask(userId: string, id: string): Promise<boolean> {
   return result.rowCount !== null && result.rowCount > 0;
 }
 
+export type WebPushSubscriptionRow = {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+};
+
+export async function upsertWebPushSubscription(
+  userId: string,
+  input: { endpoint: string; p256dh: string; auth: string }
+): Promise<void> {
+  const id = nanoid();
+  await pool.query(
+    `INSERT INTO web_push_subscriptions (id, user_id, endpoint, p256dh, auth)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (endpoint) DO UPDATE SET
+       user_id = EXCLUDED.user_id,
+       p256dh = EXCLUDED.p256dh,
+       auth = EXCLUDED.auth`,
+    [id, userId, input.endpoint, input.p256dh, input.auth]
+  );
+}
+
+export async function listWebPushSubscriptions(
+  userId: string
+): Promise<WebPushSubscriptionRow[]> {
+  const r = await pool.query<WebPushSubscriptionRow>(
+    `SELECT endpoint, p256dh, auth FROM web_push_subscriptions WHERE user_id = $1`,
+    [userId]
+  );
+  return r.rows;
+}
+
+export async function deleteWebPushSubscriptionByEndpoint(
+  endpoint: string
+): Promise<void> {
+  await pool.query(`DELETE FROM web_push_subscriptions WHERE endpoint = $1`, [
+    endpoint,
+  ]);
+}
+
+export async function deleteAllWebPushSubscriptionsForUser(
+  userId: string
+): Promise<void> {
+  await pool.query(`DELETE FROM web_push_subscriptions WHERE user_id = $1`, [
+    userId,
+  ]);
+}
+
 export async function pingDb(): Promise<boolean> {
   await pool.query("SELECT 1");
   return true;

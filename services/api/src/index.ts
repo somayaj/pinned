@@ -1,3 +1,4 @@
+import "dotenv/config";
 import cors from "cors";
 import express from "express";
 import { createServer } from "http";
@@ -8,6 +9,11 @@ import { migrate } from "./db/migrate.js";
 import { requireAuth } from "./middleware/requireAuth.js";
 import { authRouter } from "./routes/auth.js";
 import { geocodeHandler } from "./routes/geocode.js";
+import {
+  deletePushSubscription,
+  getVapidPublic,
+  postPushSubscription,
+} from "./routes/push.js";
 import { taskRouter } from "./routes/tasks.js";
 import * as store from "./store.js";
 import type { WsOutboundMessage } from "./types.js";
@@ -40,6 +46,10 @@ app.get("/health", async (_req, res) => {
 });
 
 app.get("/geocode", geocodeHandler);
+
+app.get("/push/vapid-public", getVapidPublic);
+app.post("/push/subscribe", requireAuth, postPushSubscription);
+app.delete("/push/subscribe", requireAuth, deletePushSubscription);
 
 app.use("/auth", authRouter);
 app.use("/tasks", requireAuth, taskRouter);

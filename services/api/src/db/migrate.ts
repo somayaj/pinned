@@ -60,4 +60,16 @@ export async function migrate(): Promise<void> {
       ADD COLUMN remind_at TIMESTAMPTZ
     `);
   }
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS web_push_subscriptions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      endpoint TEXT NOT NULL UNIQUE,
+      p256dh TEXT NOT NULL,
+      auth TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS web_push_user_idx ON web_push_subscriptions (user_id);
+  `);
 }

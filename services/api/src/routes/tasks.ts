@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import { sendWebPushZoneEntry } from "../push/sendWebPush.js";
 import * as store from "../store.js";
 import { broadcastToUser } from "../wsHub.js";
 
@@ -85,6 +86,7 @@ taskRouter.post("/:id/nudge", async (req, res) => {
       task,
       reason: "zone_entry",
     });
+    void sendWebPushZoneEntry(userId, task);
     res.json({ ok: true });
   } catch (err) {
     console.error(err);
