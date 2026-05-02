@@ -11,12 +11,11 @@ import { useAuth } from "./AuthContext";
 import { useTasks } from "./TasksContext";
 import {
   fetchNewsHeadlines,
+  fetchNewsSettings,
   type NewsHeadline,
   type NewsHeadlinesResponse,
 } from "../lib/api";
 import { playNewsSound } from "../lib/alertSound";
-
-const POLL_MS = 20 * 60 * 1000;
 
 type NewsAlertPayload = {
   cnn: NewsHeadline[];
@@ -27,8 +26,11 @@ type NewsAlertPayload = {
 };
 
 type NewsContextValue = {
+  pollIntervalMinutes: number;
   lastAlert: NewsAlertPayload | null;
   dismissAlert: () => void;
+  refreshNewsSettings: () => Promise<void>;
+  applyNewsSettingsSnapshot: (s: { pollIntervalMinutes: number }) => void;
 };
 
 const NewsContext = createContext<NewsContextValue | null>(null);
@@ -42,13 +44,38 @@ function digestHeadlines(data: NewsHeadlinesResponse): string {
 export function NewsProvider({ children }: { children: React.ReactNode }) {
   const { accessToken } = useAuth();
   const { apiBase } = useTasks();
+  const [pollIntervalMinutes, setPollIntervalMinutes] = useState(5);
   const [lastAlert, setLastAlert] = useState<NewsAlertPayload | null>(null);
   const lastDigestRef = useRef<string | null>(null);
 
   const dismissAlert = useCallback(() => setLastAlert(null), []);
 
+  const refreshNewsSettings = useCallback(async () => {
+    if (!accessToken) return;
+    try {
+      const s = await fetchNewsSettings(apiBase, accessToken);
+      setPollIntervalMinutes(s.pollIntervalMinutes);
+    } catch {
+      /* older API or offline */
+    }
+  }, [accessToken, apiBase]);
+
+  const applyNewsSettingsSnapshot = useCallback(
+    (s: { pollIntervalMinutes: number }) => {
+      setPollIntervalMinutes(s.pollIntervalMinutes);
+    },
+    []
+  );
+
+  useEffect(() => {
+    void refreshNewsSettings();
+  }, [refreshNewsSettings]);
+
   useEffect(() => {
     if (!accessToken) return;
+    if (pollIntervalMinutes === 0) {
+      return;
+    }
     let cancelled = false;
 
     const tick = async () => {
@@ -78,16 +105,29 @@ export function NewsProvider({ children }: { children: React.ReactNode }) {
     };
 
     void tick();
-    const id = setInterval(() => void tick(), POLL_MS);
+    const ms = pollIntervalMinutes * 60 * 1000;
+    const id = setInterval(() => void tick(), ms);
     return () => {
       cancelled = true;
       clearInterval(id);
     };
-  }, [accessToken, apiBase]);
+  }, [accessToken, apiBase, pollIntervalMinutes]);
 
   const value = useMemo(
-    () => ({ lastAlert, dismissAlert }),
-    [lastAlert, dismissAlert]
+    () => ({
+      pollIntervalMinutes,
+      lastAlert,
+      dismissAlert,
+      refreshNewsSettings,
+      applyNewsSettingsSnapshot,
+    }),
+    [
+      pollIntervalMinutes,
+      lastAlert,
+      dismissAlert,
+      refreshNewsSettings,
+      applyNewsSettingsSnapshot,
+    ]
   );
 
   return <NewsContext.Provider value={value}>{children}</NewsContext.Provider>;

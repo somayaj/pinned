@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Linking,
   Pressable,
   RefreshControl,
@@ -10,14 +11,27 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../context/AuthContext";
+import { useNews } from "../context/NewsContext";
 import { useTasks } from "../context/TasksContext";
-import { fetchNewsHeadlines, type NewsHeadline } from "../lib/api";
+import {
+  fetchNewsHeadlines,
+  putNewsSettings,
+  type NewsHeadline,
+} from "../lib/api";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/types";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "News">;
 };
+
+/** Must match API `news_settings` check constraint. */
+const NEWS_POLL_MINUTES = [0, 1, 3, 5, 10, 15, 30] as const;
+
+function labelPollMinutes(m: number): string {
+  if (m === 0) return "Off";
+  return `${m} min`;
+}
 
 function HeadlineBlock({
   title,
@@ -59,6 +73,18 @@ function HeadlineBlock({
 export function NewsScreen({ navigation }: Props) {
   const { accessToken } = useAuth();
   const { apiBase } = useTasks();
+  const {
+    pollIntervalMinutes: ctxPoll,
+    applyNewsSettingsSnapshot,
+    refreshNewsSettings,
+  } = useNews();
+  const [pollMinutes, setPollMinutes] = useState(ctxPoll);
+  const [saveBusy, setSaveBusy] = useState(false);
+
+  useEffect(() => {
+    setPollMinutes(ctxPoll);
+  }, [ctxPoll]);
+
   const [cnn, setCnn] = useState<NewsHeadline[]>([]);
   const [cnbc, setCnbc] = useState<NewsHeadline[]>([]);
   const [fetchedAt, setFetchedAt] = useState<string | null>(null);
@@ -96,7 +122,33 @@ export function NewsScreen({ navigation }: Props) {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     void load();
-  }, [load]);
+    void refreshNewsSettings();
+  }, [load, refreshNewsSettings]);
+
+  const savePoll = useCallback(async () => {
+    if (!accessToken) return;
+    setSaveBusy(true);
+    try {
+      const saved = await putNewsSettings(apiBase, accessToken, {
+        pollIntervalMinutes: pollMinutes,
+      });
+      applyNewsSettingsSnapshot(saved);
+      await refreshNewsSettings();
+    } catch (e) {
+      Alert.alert(
+        "News",
+        e instanceof Error ? e.message : "Could not save headline alert interval"
+      );
+    } finally {
+      setSaveBusy(false);
+    }
+  }, [
+    accessToken,
+    apiBase,
+    applyNewsSettingsSnapshot,
+    pollMinutes,
+    refreshNewsSettings,
+  ]);
 
   const timeLabel = fetchedAt
     ? new Date(fetchedAt).toLocaleString(undefined, {
@@ -125,7 +177,48 @@ export function NewsScreen({ navigation }: Props) {
       >
         <Text className="text-sm text-slate-600">
           Top stories from CNN and CNBC (RSS). While the app is open, a headline card
-          can also slide up when feeds refresh.
+          can slide up when the RSS digest changes, on the interval below (or turn
+          alerts off).
+        </Text>
+
+        <Text className="mt-6 text-xs font-medium uppercase text-slate-500">
+          Headline alerts
+        </Text>
+        <View className="mt-2 flex-row flex-wrap gap-2">
+          {NEWS_POLL_MINUTES.map((m) => (
+            <Pressable
+              key={m}
+              onPress={() => setPollMinutes(m)}
+              className={`rounded-full border px-3 py-2 ${
+                pollMinutes === m
+                  ? "border-pin-600 bg-pin-50"
+                  : "border-slate-200 bg-white"
+              }`}
+            >
+              <Text
+                className={`text-sm font-semibold ${
+                  pollMinutes === m ? "text-pin-900" : "text-slate-700"
+                }`}
+              >
+                {labelPollMinutes(m)}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        <Pressable
+          onPress={() => void savePoll()}
+          disabled={saveBusy}
+          className="mt-4 items-center rounded-xl bg-pin-600 py-3 active:bg-pin-700 disabled:opacity-50"
+        >
+          {saveBusy ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text className="font-semibold text-white">Save alert interval</Text>
+          )}
+        </Pressable>
+
+        <Text className="mt-8 text-xs font-medium uppercase text-slate-500">
+          Latest headlines
         </Text>
         {timeLabel ? (
           <Text className="mt-2 text-xs text-slate-500">Updated {timeLabel}</Text>

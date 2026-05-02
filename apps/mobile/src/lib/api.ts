@@ -329,6 +329,40 @@ export async function fetchNewsHeadlines(
   return res.json() as Promise<NewsHeadlinesResponse>;
 }
 
+export type NewsSettingsResponse = {
+  pollIntervalMinutes: number;
+};
+
+export async function fetchNewsSettings(
+  apiBase: string,
+  accessToken: string
+): Promise<NewsSettingsResponse> {
+  const res = await fetch(`${apiBase.replace(/\/$/, "")}/news/settings`, {
+    headers: authHeaders(accessToken),
+  });
+  if (res.status === 401) throw new Error("session_expired");
+  if (!res.ok) throw new Error(`News settings failed: ${res.status}`);
+  return res.json() as Promise<NewsSettingsResponse>;
+}
+
+export async function putNewsSettings(
+  apiBase: string,
+  accessToken: string,
+  body: { pollIntervalMinutes: number }
+): Promise<NewsSettingsResponse> {
+  const res = await fetch(`${apiBase.replace(/\/$/, "")}/news/settings`, {
+    method: "PUT",
+    headers: authHeaders(accessToken, true),
+    body: JSON.stringify(body),
+  });
+  if (res.status === 401) throw new Error("session_expired");
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(t || `News settings save failed: ${res.status}`);
+  }
+  return res.json() as Promise<NewsSettingsResponse>;
+}
+
 export async function fetchUserProfile(
   apiBase: string,
   accessToken: string

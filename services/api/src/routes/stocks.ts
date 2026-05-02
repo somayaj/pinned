@@ -24,8 +24,9 @@ const putWatchlistBody = z.object({
   pollIntervalMinutes: z.coerce
     .number()
     .int()
-    .min(1)
-    .max(60)
+    .refine((n) => n === 0 || (n >= 1 && n <= 60), {
+      message: "invalid_poll_interval",
+    })
     .optional(),
 });
 

@@ -253,7 +253,10 @@ export async function migrate(): Promise<void> {
       user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       symbols TEXT[] NOT NULL DEFAULT '{}',
       poll_interval_minutes INTEGER NOT NULL DEFAULT 5
-        CHECK (poll_interval_minutes >= 1 AND poll_interval_minutes <= 60),
+        CHECK (
+          poll_interval_minutes = 0
+          OR (poll_interval_minutes >= 1 AND poll_interval_minutes <= 60)
+        ),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `);
@@ -264,6 +267,18 @@ export async function migrate(): Promise<void> {
   await pool.query(`
     ALTER TABLE stock_watchlist
     ADD CONSTRAINT stock_watchlist_poll_interval_minutes_check
-    CHECK (poll_interval_minutes >= 1 AND poll_interval_minutes <= 60);
+    CHECK (
+      poll_interval_minutes = 0
+      OR (poll_interval_minutes >= 1 AND poll_interval_minutes <= 60)
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS news_settings (
+      user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      poll_interval_minutes INTEGER NOT NULL DEFAULT 5
+        CHECK (poll_interval_minutes IN (0, 1, 3, 5, 10, 15, 30)),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
   `);
 }

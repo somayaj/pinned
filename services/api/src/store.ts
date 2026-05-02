@@ -556,6 +556,36 @@ export async function setStockWatchlist(
   );
 }
 
+export type NewsSettingsRow = {
+  pollIntervalMinutes: number;
+};
+
+export async function getNewsSettings(
+  userId: string
+): Promise<NewsSettingsRow | null> {
+  const r = await pool.query<{ poll_interval_minutes: number }>(
+    `SELECT poll_interval_minutes FROM news_settings WHERE user_id = $1`,
+    [userId]
+  );
+  const row = r.rows[0];
+  if (!row) return null;
+  return { pollIntervalMinutes: row.poll_interval_minutes };
+}
+
+export async function setNewsSettings(
+  userId: string,
+  pollIntervalMinutes: number
+): Promise<void> {
+  await pool.query(
+    `INSERT INTO news_settings (user_id, poll_interval_minutes, updated_at)
+     VALUES ($1, $2, now())
+     ON CONFLICT (user_id) DO UPDATE SET
+       poll_interval_minutes = EXCLUDED.poll_interval_minutes,
+       updated_at = now()`,
+    [userId, pollIntervalMinutes]
+  );
+}
+
 export async function pingDb(): Promise<boolean> {
   await pool.query("SELECT 1");
   return true;

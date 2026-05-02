@@ -61,11 +61,11 @@ export function StocksProvider({ children }: { children: React.ReactNode }) {
   }, [refreshWatchlist]);
 
   useEffect(() => {
-    if (!accessToken || symbols.length === 0) {
+    if (!accessToken || symbols.length === 0 || pollIntervalMinutes === 0) {
       return;
     }
     let cancelled = false;
-    const ms = Math.max(1, pollIntervalMinutes) * 60 * 1000;
+    const ms = pollIntervalMinutes * 60 * 1000;
 
     const tick = async () => {
       try {

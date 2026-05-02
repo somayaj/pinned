@@ -16,8 +16,13 @@ import { useTasks } from "../context/TasksContext";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/types";
 
-const INTERVALS = [1, 2, 3, 5, 10, 15, 30, 60] as const;
+const INTERVALS = [0, 1, 2, 3, 5, 10, 15, 30, 60] as const;
 const MAX_TICKERS = 10;
+
+function labelStockPollMinutes(m: number): string {
+  if (m === 0) return "Off";
+  return `${m} min`;
+}
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "Stocks">;
@@ -106,9 +111,9 @@ export function StocksScreen({ navigation }: Props) {
       <ScrollView className="flex-1 px-4 pt-4" keyboardShouldPersistTaps="handled">
         <Text className="text-sm text-slate-600">
           Add up to {MAX_TICKERS} tickers. Prices refresh from Yahoo Finance on the
-          interval you choose (as often as every minute; default 5 minutes). An info
-          panel slides up with each
-          update while the app is open.
+          interval you choose (as often as every minute; default 5 minutes), or turn
+          background updates off. An info panel slides up with each update while the
+          app is open.
         </Text>
 
         <Text className="mt-6 text-xs font-medium uppercase text-slate-500">
@@ -172,7 +177,7 @@ export function StocksScreen({ navigation }: Props) {
                   pollMinutes === m ? "text-pin-900" : "text-slate-700"
                 }`}
               >
-                {m} min
+                {labelStockPollMinutes(m)}
               </Text>
             </Pressable>
           ))}
