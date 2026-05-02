@@ -50,6 +50,9 @@ type TasksContextValue = {
     remindAt: string | null;
   }) => Promise<void>;
   removeTask: (id: string) => Promise<void>;
+  /** Web: in-app banner when server broadcasts task_alert (app-like feedback in the tab). */
+  taskAlert: { task: Task; reason: string } | null;
+  dismissTaskAlert: () => void;
 };
 
 const TasksContext = createContext<TasksContextValue | null>(null);
@@ -61,6 +64,10 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   const [wsStatus, setWsStatus] = useState<WsStatus>("off");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [taskAlert, setTaskAlert] = useState<{
+    task: Task;
+    reason: string;
+  } | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const attemptRef = useRef(0);
@@ -81,11 +88,16 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     setTasks(list);
   }, [accessToken]);
 
+  const dismissTaskAlert = useCallback(() => {
+    setTaskAlert(null);
+  }, []);
+
   useEffect(() => {
     if (!accessToken) {
       setTasks([]);
       setLoading(false);
       setError(null);
+      setTaskAlert(null);
       return;
     }
     let cancelled = false;
@@ -170,9 +182,21 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
         const msg = JSON.parse(String(event.data)) as {
           type?: string;
           tasks?: Task[];
+          task?: Task;
+          reason?: string;
         };
         if (msg.type === "tasks_updated" && Array.isArray(msg.tasks)) {
           setTasks(msg.tasks);
+        }
+        if (
+          Platform.OS === "web" &&
+          msg.type === "task_alert" &&
+          msg.task
+        ) {
+          setTaskAlert({
+            task: msg.task,
+            reason: msg.reason ?? "",
+          });
         }
       } catch {
         /* ignore */
@@ -238,6 +262,8 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       refresh,
       addTask,
       removeTask,
+      taskAlert,
+      dismissTaskAlert,
     }),
     [
       tasks,
@@ -249,6 +275,8 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       refresh,
       addTask,
       removeTask,
+      taskAlert,
+      dismissTaskAlert,
     ]
   );
 

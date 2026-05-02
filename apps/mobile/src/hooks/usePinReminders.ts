@@ -30,7 +30,15 @@ async function showReminderNotification(
         await Notification.requestPermission();
       }
       if (Notification.permission === "granted") {
-        new Notification("Pinned", { body, tag: task.id });
+        const origin =
+          typeof window !== "undefined" ? window.location.origin : "";
+        const icon = `${origin}/pinned-nudge-icon.svg`;
+        new Notification("Pinned", {
+          body,
+          tag: task.id,
+          icon,
+          badge: icon,
+        });
         return;
       }
       onWebInAppFallback?.(task);

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <title>Pinned nudge</title>
+  <defs>
+    <linearGradient id="pinGrad" x1="40" y1="16" x2="88" y2="112" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#0284c7"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0369a1" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <!-- soft ring (nudge pulse) -->
+  <circle cx="64" cy="52" r="44" fill="#bae6fd" opacity="0.45"/>
+  <circle cx="64" cy="52" r="36" fill="#e0f2fe" opacity="0.9"/>
+  <!-- map pin -->
+  <path
+    filter="url(#soft)"
+    fill="url(#pinGrad)"
+    d="M64 20c-16.5 0-30 13.2-30 29.5C34 72 64 108 64 108s30-36 30-58.5C94 33.2 80.5 20 64 20zm0 42a14 14 0 110-28 14 14 0 010 28z"
+  />
+  <circle cx="64" cy="49.5" r="9" fill="white" opacity="0.95"/>
+</svg>

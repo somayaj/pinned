@@ -31,10 +31,12 @@ export async function subscribeToWebPush(
     return { ok: false, error: "no_server_keys" };
   }
 
-  const reg = await navigator.serviceWorker.register("/service-worker.js", {
-    scope: "/",
-  });
+  const swUrl = new URL("/service-worker.js", window.location.href).href;
+  const reg = await navigator.serviceWorker.register(swUrl, { scope: "/" });
   await reg.update();
+  if (__DEV__) {
+    console.log("[pinned] service worker registered", swUrl, "scope", reg.scope);
+  }
 
   const perm = await Notification.requestPermission();
   if (perm !== "granted") {
