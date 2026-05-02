@@ -10,6 +10,8 @@ export const authRouter = Router();
 const patchProfileBody = z.object({
   phoneE164: z.string().nullable().optional(),
   smsAlerts: z.boolean().optional(),
+  remindersEnabled: z.boolean().optional(),
+  reminderMutedTaskIds: z.array(z.string().min(1).max(40)).max(100).optional(),
 });
 
 const googleBody = z.object({
@@ -53,6 +55,8 @@ authRouter.get("/profile", requireAuth, async (req, res) => {
         picture: user.picture,
         phoneE164: user.phoneE164,
         smsAlerts: user.smsAlerts,
+        remindersEnabled: user.remindersEnabled,
+        reminderMutedTaskIds: user.reminderMutedTaskIds,
       },
     });
   } catch (err) {
@@ -68,8 +72,14 @@ authRouter.patch("/profile", requireAuth, async (req, res) => {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  const { phoneE164, smsAlerts } = parsed.data;
-  if (smsAlerts === undefined && phoneE164 === undefined) {
+  const { phoneE164, smsAlerts, remindersEnabled, reminderMutedTaskIds } =
+    parsed.data;
+  if (
+    smsAlerts === undefined &&
+    phoneE164 === undefined &&
+    remindersEnabled === undefined &&
+    reminderMutedTaskIds === undefined
+  ) {
     res.status(400).json({ error: "no_fields" });
     return;
   }
@@ -80,6 +90,14 @@ authRouter.patch("/profile", requireAuth, async (req, res) => {
         phoneE164 !== undefined ? phoneE164 : current.phoneE164,
       smsAlerts:
         smsAlerts !== undefined ? smsAlerts : current.smsAlerts,
+      remindersEnabled:
+        remindersEnabled !== undefined
+          ? remindersEnabled
+          : current.remindersEnabled,
+      reminderMutedTaskIds:
+        reminderMutedTaskIds !== undefined
+          ? reminderMutedTaskIds
+          : current.reminderMutedTaskIds,
     });
     const user = await store.getUserProfile(userId);
     res.json({
@@ -90,6 +108,8 @@ authRouter.patch("/profile", requireAuth, async (req, res) => {
         picture: user.picture,
         phoneE164: user.phoneE164,
         smsAlerts: user.smsAlerts,
+        remindersEnabled: user.remindersEnabled,
+        reminderMutedTaskIds: user.reminderMutedTaskIds,
       },
     });
   } catch (e) {

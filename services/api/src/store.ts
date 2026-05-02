@@ -406,6 +406,11 @@ export type UserSmsSettings = {
   smsAlerts: boolean;
 };
 
+export type UserReminderPrefs = {
+  remindersEnabled: boolean;
+  reminderMutedTaskIds: string[];
+};
+
 export async function getUserSmsSettings(
   userId: string
 ): Promise<UserSmsSettings> {
@@ -424,7 +429,7 @@ export async function getUserSmsSettings(
   };
 }
 
-export type UserProfile = AppUser & UserSmsSettings;
+export type UserProfile = AppUser & UserSmsSettings & UserReminderPrefs;
 
 export async function getUserProfile(userId: string): Promise<UserProfile> {
   const r = await pool.query<{
@@ -434,8 +439,12 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
     picture: string | null;
     phone_e164: string | null;
     sms_alerts: boolean;
+    reminders_enabled: boolean | null;
+    reminder_muted_task_ids: string[] | null;
   }>(
-    `SELECT id, email, name, picture, phone_e164, COALESCE(sms_alerts, false) AS sms_alerts
+    `SELECT id, email, name, picture, phone_e164, COALESCE(sms_alerts, false) AS sms_alerts,
+            COALESCE(reminders_enabled, true) AS reminders_enabled,
+            COALESCE(reminder_muted_task_ids, ARRAY[]::text[]) AS reminder_muted_task_ids
      FROM users WHERE id = $1`,
     [userId]
   );
@@ -443,6 +452,7 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
   if (!row) {
     throw new Error("user_not_found");
   }
+  const muted = row.reminder_muted_task_ids;
   return {
     id: row.id,
     email: row.email,
@@ -450,6 +460,8 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
     picture: row.picture,
     phoneE164: row.phone_e164,
     smsAlerts: row.sms_alerts,
+    remindersEnabled: row.reminders_enabled ?? true,
+    reminderMutedTaskIds: Array.isArray(muted) ? muted : [],
   };
 }
 
@@ -463,7 +475,12 @@ function normalizePhone(raw: string | null): string | null {
 
 export async function updateUserProfile(
   userId: string,
-  input: { phoneE164: string | null; smsAlerts: boolean }
+  input: {
+    phoneE164: string | null;
+    smsAlerts: boolean;
+    remindersEnabled: boolean;
+    reminderMutedTaskIds: string[];
+  }
 ): Promise<void> {
   const phone = normalizePhone(input.phoneE164);
   if (input.phoneE164 != null && input.phoneE164.trim() !== "" && phone === null) {
@@ -471,8 +488,13 @@ export async function updateUserProfile(
   }
   const smsOn = Boolean(input.smsAlerts && phone);
   await pool.query(
-    `UPDATE users SET phone_e164 = $2, sms_alerts = $3 WHERE id = $1`,
-    [userId, phone, smsOn]
+    `UPDATE users SET
+       phone_e164 = $2,
+       sms_alerts = $3,
+       reminders_enabled = $4,
+       reminder_muted_task_ids = $5::text[]
+     WHERE id = $1`,
+    [userId, phone, smsOn, input.remindersEnabled, input.reminderMutedTaskIds]
   );
 }
 

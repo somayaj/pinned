@@ -225,6 +225,10 @@ export type UserProfile = {
   picture: string | null;
   phoneE164: string | null;
   smsAlerts: boolean;
+  /** When false, pin/time reminders stay off until turned back on (stored in Postgres). */
+  remindersEnabled?: boolean;
+  /** Task ids muted via Dismiss / mute until Resume (stored in Postgres). */
+  reminderMutedTaskIds?: string[];
 };
 
 export type StockQuote = {
@@ -312,7 +316,12 @@ export async function fetchUserProfile(
 export async function patchUserProfile(
   apiBase: string,
   accessToken: string,
-  body: { phoneE164?: string | null; smsAlerts?: boolean }
+  body: {
+    phoneE164?: string | null;
+    smsAlerts?: boolean;
+    remindersEnabled?: boolean;
+    reminderMutedTaskIds?: string[];
+  }
 ): Promise<UserProfile> {
   const res = await fetch(`${apiBase.replace(/\/$/, "")}/auth/profile`, {
     method: "PATCH",

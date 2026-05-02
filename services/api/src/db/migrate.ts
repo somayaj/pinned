@@ -75,12 +75,25 @@ export async function migrate(): Promise<void> {
   }
 
   /** Time-only reminders: no map pin — lat/lon/radius NULL, remind_at required. */
-  const pinOrTime = await pool.query<{ exists: boolean }>(
+  const radiusValidC = await pool.query<{ exists: boolean }>(
+    `SELECT EXISTS (
+       SELECT 1 FROM pg_constraint WHERE conname = 'tasks_radius_meters_valid'
+     ) AS exists`
+  );
+  const pinOrTimeC = await pool.query<{ exists: boolean }>(
     `SELECT EXISTS (
        SELECT 1 FROM pg_constraint WHERE conname = 'tasks_pin_or_time'
      ) AS exists`
   );
-  if (!pinOrTime.rows[0]?.exists) {
+  const pinOrTimeV2C = await pool.query<{ exists: boolean }>(
+    `SELECT EXISTS (
+       SELECT 1 FROM pg_constraint WHERE conname = 'tasks_pin_or_time_v2'
+     ) AS exists`
+  );
+  const needsNullablePinColumns =
+    !radiusValidC.rows[0]?.exists ||
+    (!pinOrTimeC.rows[0]?.exists && !pinOrTimeV2C.rows[0]?.exists);
+  if (needsNullablePinColumns) {
     await pool.query(`
       ALTER TABLE tasks DROP CONSTRAINT IF EXISTS tasks_radius_meters_check
     `);
@@ -93,11 +106,15 @@ export async function migrate(): Promise<void> {
     await pool.query(`
       ALTER TABLE tasks ALTER COLUMN radius_meters DROP NOT NULL
     `);
+  }
+  if (!radiusValidC.rows[0]?.exists) {
     await pool.query(`
       ALTER TABLE tasks ADD CONSTRAINT tasks_radius_meters_valid CHECK (
         radius_meters IS NULL OR (radius_meters >= 10 AND radius_meters <= 50000)
       )
     `);
+  }
+  if (!pinOrTimeC.rows[0]?.exists && !pinOrTimeV2C.rows[0]?.exists) {
     await pool.query(`
       ALTER TABLE tasks ADD CONSTRAINT tasks_pin_or_time CHECK (
         (latitude IS NOT NULL AND longitude IS NOT NULL AND radius_meters IS NOT NULL)
@@ -190,6 +207,31 @@ export async function migrate(): Promise<void> {
     await pool.query(`
       ALTER TABLE users
       ADD COLUMN sms_alerts BOOLEAN NOT NULL DEFAULT false
+    `);
+  }
+
+  const reOnCol = await pool.query<{ exists: boolean }>(
+    `SELECT EXISTS (
+       SELECT 1 FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'reminders_enabled'
+     ) AS exists`
+  );
+  if (!reOnCol.rows[0]?.exists) {
+    await pool.query(`
+      ALTER TABLE users
+      ADD COLUMN reminders_enabled BOOLEAN NOT NULL DEFAULT true
+    `);
+  }
+  const mutedCol = await pool.query<{ exists: boolean }>(
+    `SELECT EXISTS (
+       SELECT 1 FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'reminder_muted_task_ids'
+     ) AS exists`
+  );
+  if (!mutedCol.rows[0]?.exists) {
+    await pool.query(`
+      ALTER TABLE users
+      ADD COLUMN reminder_muted_task_ids TEXT[] NOT NULL DEFAULT '{}'
     `);
   }
 
