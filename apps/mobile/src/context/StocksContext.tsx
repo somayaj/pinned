@@ -4,8 +4,10 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
+import { AppState, Platform } from "react-native";
 import { useAuth } from "./AuthContext";
 import { useTasks } from "./TasksContext";
 import {
@@ -39,6 +41,18 @@ export function StocksProvider({ children }: { children: React.ReactNode }) {
   const [symbols, setSymbols] = useState<string[]>([]);
   const [pollIntervalMinutes, setPollIntervalMinutes] = useState(5);
   const [lastAlert, setLastAlert] = useState<StockAlertPayload | null>(null);
+  const pollDepsRef = useRef({
+    accessToken: "" as string | undefined,
+    apiBase: "",
+    symbols: [] as string[],
+    pollIntervalMinutes: 5,
+  });
+  pollDepsRef.current = {
+    accessToken: accessToken ?? undefined,
+    apiBase,
+    symbols,
+    pollIntervalMinutes,
+  };
 
   const refreshWatchlist = useCallback(async () => {
     if (!accessToken) return;
@@ -68,17 +82,18 @@ export function StocksProvider({ children }: { children: React.ReactNode }) {
     const ms = pollIntervalMinutes * 60 * 1000;
 
     const tick = async () => {
+      const { accessToken: token, apiBase: base, symbols: syms } = pollDepsRef.current;
+      if (!token || syms.length === 0) return;
       try {
-        const data = await fetchStockQuotes(apiBase, accessToken, symbols);
-        if (!cancelled && data.quotes.length > 0) {
-          playStocksUpdateSound();
-          setLastAlert({
-            quotes: data.quotes,
-            fetchedAt: data.fetchedAt,
-          });
-        }
+        const data = await fetchStockQuotes(base, token, syms);
+        if (cancelled || data.quotes.length === 0) return;
+        playStocksUpdateSound();
+        setLastAlert({
+          quotes: data.quotes,
+          fetchedAt: data.fetchedAt,
+        });
       } catch {
-        /* quote errors are non-fatal */
+        void refreshWatchlist();
       }
     };
 
@@ -88,7 +103,7 @@ export function StocksProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
       clearInterval(id);
     };
-  }, [accessToken, apiBase, symbols, pollIntervalMinutes]);
+  }, [accessToken, apiBase, symbols, pollIntervalMinutes, refreshWatchlist]);
 
   const dismissAlert = useCallback(() => setLastAlert(null), []);
 

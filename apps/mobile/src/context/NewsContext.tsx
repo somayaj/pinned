@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { AppState, Platform } from "react-native";
 import { useAuth } from "./AuthContext";
 import { useTasks } from "./TasksContext";
 import {
@@ -47,6 +48,16 @@ export function NewsProvider({ children }: { children: React.ReactNode }) {
   const [pollIntervalMinutes, setPollIntervalMinutes] = useState(5);
   const [lastAlert, setLastAlert] = useState<NewsAlertPayload | null>(null);
   const lastDigestRef = useRef<string | null>(null);
+  const pollDepsRef = useRef({
+    accessToken: "" as string | undefined,
+    apiBase: "",
+    pollIntervalMinutes: 5,
+  });
+  pollDepsRef.current = {
+    accessToken: accessToken ?? undefined,
+    apiBase,
+    pollIntervalMinutes,
+  };
 
   const dismissAlert = useCallback(() => setLastAlert(null), []);
 
@@ -79,19 +90,24 @@ export function NewsProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
 
     const tick = async () => {
+      const { accessToken: token, apiBase: base, pollIntervalMinutes: pollM } =
+        pollDepsRef.current;
+      if (!token || pollM === 0) return;
       try {
-        const data = await fetchNewsHeadlines(apiBase, accessToken);
+        const data = await fetchNewsHeadlines(base, token);
         if (cancelled) return;
         const d = digestHeadlines(data);
         const hasItems = data.cnn.length > 0 || data.cnbc.length > 0;
         if (!hasItems) return;
 
-        if (lastDigestRef.current !== null && d === lastDigestRef.current) {
-          return;
-        }
+        const digestChanged =
+          lastDigestRef.current === null || d !== lastDigestRef.current;
         lastDigestRef.current = d;
 
-        playNewsSound();
+        if (digestChanged) {
+          playNewsSound();
+        }
+
         setLastAlert({
           cnn: data.cnn,
           cnbc: data.cnbc,
@@ -107,9 +123,26 @@ export function NewsProvider({ children }: { children: React.ReactNode }) {
     void tick();
     const ms = pollIntervalMinutes * 60 * 1000;
     const id = setInterval(() => void tick(), ms);
+
+    const onAppActive = (s: string) => {
+      if (s === "active") void tick();
+    };
+    const appSub = AppState.addEventListener("change", onAppActive);
+
+    let removeVis: (() => void) | undefined;
+    if (Platform.OS === "web" && typeof document !== "undefined") {
+      const onVis = () => {
+        if (!document.hidden) void tick();
+      };
+      document.addEventListener("visibilitychange", onVis);
+      removeVis = () => document.removeEventListener("visibilitychange", onVis);
+    }
+
     return () => {
       cancelled = true;
       clearInterval(id);
+      appSub.remove();
+      removeVis?.();
     };
   }, [accessToken, apiBase, pollIntervalMinutes]);
 

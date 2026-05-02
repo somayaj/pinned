@@ -4,9 +4,45 @@ import { z } from "zod";
 import * as store from "../store.js";
 
 /** v3 requires a constructed instance (see yahoo-finance2 UPGRADING.md). */
-const yahooFinance = new YahooFinance();
+const yahooFinance = new YahooFinance({
+  suppressNotices: ["yahooSurvey"],
+});
 
 export const stockRouter = Router();
+
+const YAHOO_QUOTE_RETRIES = 3;
+
+function isTransientYahooNetworkError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (err instanceof TypeError && /fetch failed/i.test(msg)) return true;
+  const blob = `${msg}${err instanceof Error && err.cause ? String(err.cause) : ""}`;
+  return /ETIMEDOUT|ECONNRESET|ENOTFOUND|EAI_AGAIN/i.test(blob);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+/** Yahoo crumb / quote often hit ETIMEDOUT from cloud hosts; brief backoff retries help. */
+async function yahooQuoteWithRetries(symbols: string[]) {
+  let last: unknown;
+  for (let attempt = 0; attempt < YAHOO_QUOTE_RETRIES; attempt++) {
+    try {
+      return await yahooFinance.quote(symbols);
+    } catch (e) {
+      last = e;
+      if (!isTransientYahooNetworkError(e) || attempt === YAHOO_QUOTE_RETRIES - 1) {
+        throw e;
+      }
+      const waitMs = 1200 * (attempt + 1);
+      console.warn(
+        `[stocks] yahoo quote transient error (attempt ${attempt + 1}/${YAHOO_QUOTE_RETRIES}), retry in ${waitMs}ms`
+      );
+      await sleep(waitMs);
+    }
+  }
+  throw last;
+}
 
 const MAX_SYMBOLS = 10;
 
@@ -153,7 +189,7 @@ stockRouter.get("/quotes", async (req, res) => {
   }
 
   try {
-    const results = await yahooFinance.quote(requested);
+    const results = await yahooQuoteWithRetries(requested);
     const list = Array.isArray(results) ? results : [results];
     const quotes: StockQuoteOut[] = list.map((row) =>
       mapQuote(row as Record<string, unknown>)

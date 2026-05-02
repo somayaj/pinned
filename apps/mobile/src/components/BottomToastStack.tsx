@@ -74,6 +74,9 @@ export function BottomToastStack() {
   const stockOpacity = useRef(new Animated.Value(0)).current;
   const newsSlideY = useRef(new Animated.Value(48)).current;
   const newsOpacity = useRef(new Animated.Value(0)).current;
+  /** Avoid resetting opacity to 0 on every poll — that can leave stocks invisible. */
+  const stockEnterPending = useRef(true);
+  const newsEnterPending = useRef(true);
 
   useEffect(() => {
     if (!stockAlert) return;
@@ -82,7 +85,15 @@ export function BottomToastStack() {
   }, [stockAlert, dismissStocks]);
 
   useEffect(() => {
-    if (!stockAlert) return;
+    if (!stockAlert) {
+      stockEnterPending.current = true;
+      stockOpacity.setValue(0);
+      return;
+    }
+    if (!stockEnterPending.current) {
+      return;
+    }
+    stockEnterPending.current = false;
     stockSlideY.setValue(48);
     stockOpacity.setValue(0);
     Animated.parallel([
@@ -107,7 +118,15 @@ export function BottomToastStack() {
   }, [newsAlert, dismissNews]);
 
   useEffect(() => {
-    if (!newsAlert) return;
+    if (!newsAlert) {
+      newsEnterPending.current = true;
+      newsOpacity.setValue(0);
+      return;
+    }
+    if (!newsEnterPending.current) {
+      return;
+    }
+    newsEnterPending.current = false;
     newsSlideY.setValue(48);
     newsOpacity.setValue(0);
     Animated.parallel([
@@ -179,6 +198,7 @@ export function BottomToastStack() {
               width: toastW,
               maxWidth: "100%",
               alignSelf: "center",
+              zIndex: 10,
               opacity: stockOpacity,
               transform: [{ translateY: stockSlideY }],
             }}
@@ -265,6 +285,7 @@ export function BottomToastStack() {
               width: toastW,
               maxWidth: "100%",
               alignSelf: "center",
+              zIndex: 1,
               opacity: newsOpacity,
               transform: [{ translateY: newsSlideY }],
             }}
