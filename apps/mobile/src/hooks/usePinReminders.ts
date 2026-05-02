@@ -1,13 +1,17 @@
 import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Platform } from "react-native";
+import { useTasks } from "../context/TasksContext";
+import { playPinnedAlertSound } from "../lib/alertSound";
 import * as api from "../lib/api";
 import { distanceMeters } from "../lib/geo";
 import type { Task } from "../types/task";
 
 /** While inside a pin, repeat nudge + notification at this interval. */
 const NUDGE_INTERVAL_MS = 60_000;
+/** Re-evaluate reminders on a timer — GPS callbacks often stop when you stand still (esp. web). */
+const LOCATION_TICK_MS = 15_000;
 
 function canUseBrowserNotifications(): boolean {
   return (
@@ -17,15 +21,14 @@ function canUseBrowserNotifications(): boolean {
   );
 }
 
+type ReminderPresentation = "web_os" | "native" | "web_fallback";
+
 /**
  * Web: `expo-notifications` does not show system banners reliably; use the Web Notifications API.
- * If permission denied, caller can show an in-app banner via `onWebInAppFallback`.
- * Native: keep using expo-notifications.
+ * Returns `web_fallback` when the caller should batch in-app UI (no OS banner).
+ * Each OS notification uses a unique `tag` so repeats and multiple pins do not replace each other.
  */
-async function showReminderNotification(
-  task: Task,
-  onWebInAppFallback?: (t: Task) => void
-): Promise<void> {
+async function presentReminderForTask(task: Task): Promise<ReminderPresentation> {
   const body = `You're at: ${task.title}`;
   if (canUseBrowserNotifications()) {
     try {
@@ -36,60 +39,126 @@ async function showReminderNotification(
         const origin =
           typeof window !== "undefined" ? window.location.origin : "";
         const icon = `${origin}/pinned-nudge-icon.svg`;
-        const tag = `${task.id}-${Math.floor(Date.now() / NUDGE_INTERVAL_MS)}`;
+        const tag = `${task.id}-${Date.now()}`;
+        playPinnedAlertSound();
         new Notification("Pinned", {
           body,
           tag,
           icon,
           badge: icon,
         });
-        return;
+        return "web_os";
       }
-      onWebInAppFallback?.(task);
+      return "web_fallback";
     } catch {
-      onWebInAppFallback?.(task);
+      return "web_fallback";
     }
-    return;
   }
   await Notifications.scheduleNotificationAsync({
     content: {
       title: "Pinned",
       body,
       data: { taskId: task.id },
+      sound: true,
       ...(Platform.OS === "android"
         ? { android: { channelId: "reminders" } }
         : {}),
     },
     trigger: null,
   });
+  return "native";
 }
 
 /**
  * While inside a task's radius (and past remindAt if set): notification + POST nudge
- * every {@link NUDGE_INTERVAL_MS} (WebSocket task_alert for web overlay).
+ * every {@link NUDGE_INTERVAL_MS} (WebSocket `task_alert` for web overlay).
+ * Multiple pins in one scan each get their own OS notification (unique tags) or one
+ * combined in-app fallback batch; throttle timestamp updates only after nudge succeeds.
  */
 export function usePinReminders(
   tasks: Task[],
   apiBase: string,
   accessToken: string | null,
   enabled: boolean,
-  onWebInAppFallback?: (task: Task) => void
+  onWebInAppFallback?: (tasks: Task[]) => void
 ) {
+  const { reminderMutedTaskIds } = useTasks();
+  const mutedByDismiss = useMemo(
+    () => new Set(reminderMutedTaskIds),
+    [reminderMutedTaskIds]
+  );
   const insideRef = useRef<Map<string, boolean>>(new Map());
   /** Last epoch ms we nudged for this task while still inside the zone. */
   const lastNudgeAtRef = useRef<Map<string, number>>(new Map());
+  const lastCoordsRef = useRef<{ lat: number; lon: number } | null>(null);
   const subRef = useRef<Location.LocationSubscription | null>(null);
 
   useEffect(() => {
     if (!enabled || !accessToken) {
       insideRef.current.clear();
       lastNudgeAtRef.current.clear();
+      lastCoordsRef.current = null;
       subRef.current?.remove();
       subRef.current = null;
       return;
     }
 
     let cancelled = false;
+    let tickId: ReturnType<typeof setInterval> | null = null;
+
+    const runScan = async (latitude: number, longitude: number) => {
+      const now = Date.now();
+      const webFallbackBatch: Task[] = [];
+
+      for (const task of tasks) {
+        const d = distanceMeters(
+          latitude,
+          longitude,
+          task.latitude,
+          task.longitude
+        );
+        const inside = d <= task.radiusMeters;
+
+        if (!inside) {
+          insideRef.current.set(task.id, false);
+          lastNudgeAtRef.current.delete(task.id);
+          continue;
+        }
+
+        insideRef.current.set(task.id, true);
+
+        if (mutedByDismiss.has(task.id)) {
+          continue;
+        }
+
+        const timeOk =
+          task.remindAt == null ||
+          task.remindAt === "" ||
+          now >= new Date(task.remindAt).getTime();
+        if (!timeOk) continue;
+
+        const lastNudge = lastNudgeAtRef.current.get(task.id);
+        if (lastNudge != null && now - lastNudge < NUDGE_INTERVAL_MS) {
+          continue;
+        }
+
+        try {
+          const mode = await presentReminderForTask(task);
+          if (mode === "web_fallback") {
+            webFallbackBatch.push(task);
+          }
+          await api.nudgeTask(apiBase, accessToken, task.id);
+          lastNudgeAtRef.current.set(task.id, Date.now());
+        } catch {
+          /* ignore */
+        }
+      }
+
+      if (webFallbackBatch.length > 0) {
+        playPinnedAlertSound();
+        onWebInAppFallback?.(webFallbackBatch);
+      }
+    };
 
     (async () => {
       const locPerm = await Location.requestForegroundPermissionsAsync();
@@ -101,62 +170,41 @@ export function usePinReminders(
 
       if (cancelled) return;
 
+      try {
+        const pos = await Location.getCurrentPositionAsync({});
+        const { latitude, longitude } = pos.coords;
+        lastCoordsRef.current = { lat: latitude, lon: longitude };
+        await runScan(latitude, longitude);
+      } catch {
+        /* ignore */
+      }
+
+      if (cancelled) return;
+
       subRef.current = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.Balanced,
-          distanceInterval: 25,
-          timeInterval: 10000,
+          distanceInterval: 1,
+          timeInterval: 5000,
         },
         async (loc) => {
           const { latitude, longitude } = loc.coords;
-          const now = Date.now();
-          for (const task of tasks) {
-            const d = distanceMeters(
-              latitude,
-              longitude,
-              task.latitude,
-              task.longitude
-            );
-            const inside = d <= task.radiusMeters;
-
-            if (!inside) {
-              insideRef.current.set(task.id, false);
-              lastNudgeAtRef.current.delete(task.id);
-              continue;
-            }
-
-            insideRef.current.set(task.id, true);
-
-            const timeOk =
-              task.remindAt == null ||
-              task.remindAt === "" ||
-              now >= new Date(task.remindAt).getTime();
-            if (!timeOk) continue;
-
-            const lastNudge = lastNudgeAtRef.current.get(task.id);
-            if (
-              lastNudge != null &&
-              now - lastNudge < NUDGE_INTERVAL_MS
-            ) {
-              continue;
-            }
-            lastNudgeAtRef.current.set(task.id, now);
-
-            try {
-              await showReminderNotification(task, onWebInAppFallback);
-              await api.nudgeTask(apiBase, accessToken, task.id);
-            } catch {
-              /* ignore */
-            }
-          }
+          lastCoordsRef.current = { lat: latitude, lon: longitude };
+          await runScan(latitude, longitude);
         }
       );
+
+      tickId = setInterval(() => {
+        const c = lastCoordsRef.current;
+        if (c && !cancelled) void runScan(c.lat, c.lon);
+      }, LOCATION_TICK_MS);
     })();
 
     return () => {
       cancelled = true;
+      if (tickId != null) clearInterval(tickId);
       subRef.current?.remove();
       subRef.current = null;
     };
-  }, [tasks, apiBase, accessToken, enabled, onWebInAppFallback]);
+  }, [tasks, apiBase, accessToken, enabled, onWebInAppFallback, mutedByDismiss]);
 }

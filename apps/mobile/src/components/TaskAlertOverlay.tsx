@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Image, Platform, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTasks } from "../context/TasksContext";
+import { playPinnedAlertSound } from "../lib/alertSound";
 
 function nudgeIconUri(): string {
   if (typeof window === "undefined") return "";
@@ -14,7 +15,15 @@ function nudgeIconUri(): string {
  */
 export function TaskAlertOverlay() {
   const insets = useSafeAreaInsets();
-  const { taskAlert, dismissTaskAlert } = useTasks();
+  const {
+    taskAlert,
+    acknowledgeTaskAlert,
+    dismissTaskAlertMuteReminders,
+  } = useTasks();
+
+  useEffect(() => {
+    if (taskAlert) playPinnedAlertSound();
+  }, [taskAlert?.task.id, taskAlert?.reason]);
 
   if (Platform.OS !== "web" || !taskAlert) {
     return null;
@@ -50,12 +59,26 @@ export function TaskAlertOverlay() {
           {subtitle ? (
             <Text className="mt-1 text-sm text-slate-600">{subtitle}</Text>
           ) : null}
-          <Pressable
-            onPress={dismissTaskAlert}
-            className="mt-3 self-end rounded-lg bg-sky-600 px-4 py-2 active:bg-sky-700"
-          >
-            <Text className="text-sm font-semibold text-white">OK</Text>
-          </Pressable>
+          <View className="mt-3 flex-row flex-wrap justify-end gap-2">
+            <Pressable
+              onPress={dismissTaskAlertMuteReminders}
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss and mute reminders until you tap Resume on this pin"
+              className="rounded-lg border border-slate-200 bg-white px-4 py-2 active:bg-slate-50"
+            >
+              <Text className="text-sm font-semibold text-slate-800">
+                Dismiss
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={acknowledgeTaskAlert}
+              accessibilityRole="button"
+              accessibilityLabel="OK, keep reminders on"
+              className="rounded-lg bg-sky-600 px-4 py-2 active:bg-sky-700"
+            >
+              <Text className="text-sm font-semibold text-white">OK</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
     </View>

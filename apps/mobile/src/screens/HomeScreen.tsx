@@ -31,16 +31,26 @@ type Props = {
 
 export function HomeScreen({ navigation }: Props) {
   const { user, accessToken, signOut } = useAuth();
-  const { tasks, apiBase, wsStatus, loading, error, refresh, removeTask } =
-    useTasks();
+  const {
+    tasks,
+    apiBase,
+    wsStatus,
+    loading,
+    error,
+    refresh,
+    removeTask,
+    muteRemindersForTask,
+    resumeRemindersForTask,
+    reminderMutedTaskIds,
+  } = useTasks();
   const [loc, setLoc] = useState<{ lat: number; lon: number } | null>(null);
   const [remindersOn, setRemindersOn] = useState(true);
-  const [inAppBanner, setInAppBanner] = useState<Task | null>(null);
+  const [inAppBanner, setInAppBanner] = useState<Task[] | null>(null);
   const [webPushOn, setWebPushOn] = useState(false);
   const [webPushBusy, setWebPushBusy] = useState(false);
 
-  const onWebInAppFallback = useCallback((task: Task) => {
-    setInAppBanner(task);
+  const onWebInAppFallback = useCallback((batch: Task[]) => {
+    setInAppBanner(batch.length > 0 ? batch : null);
   }, []);
 
   usePinReminders(tasks, apiBase, accessToken, remindersOn, onWebInAppFallback);
@@ -120,21 +130,41 @@ export function HomeScreen({ navigation }: Props) {
         <Text className="mx-4 mt-2 text-sm text-red-600">{error}</Text>
       ) : null}
 
-      {inAppBanner ? (
+      {inAppBanner && inAppBanner.length > 0 ? (
         <View className="mx-4 mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
           <Text className="text-base font-semibold text-amber-950">
-            You&apos;re at: {inAppBanner.title}
+            You&apos;re at:{" "}
+            {inAppBanner.map((t) => t.title).join(" · ")}
           </Text>
           <Text className="mt-1 text-xs text-amber-900/90">
             Browser notifications are blocked or unavailable. Allow notifications
             for this site in the address bar to get alerts, or keep this tab open.
           </Text>
-          <Pressable
-            onPress={() => setInAppBanner(null)}
-            className="mt-2 self-end rounded-lg bg-amber-100 px-3 py-1.5 active:bg-amber-200"
-          >
-            <Text className="text-sm font-medium text-amber-950">Dismiss</Text>
-          </Pressable>
+          <View className="mt-2 flex-row flex-wrap justify-end gap-2">
+            <Pressable
+              onPress={() => {
+                if (inAppBanner) {
+                  for (const t of inAppBanner) muteRemindersForTask(t.id);
+                }
+                setInAppBanner(null);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss and mute reminders until you tap Resume on this pin"
+              className="rounded-lg border border-amber-300/80 bg-white px-3 py-1.5 active:bg-amber-100/80"
+            >
+              <Text className="text-sm font-medium text-amber-950">
+                Dismiss
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setInAppBanner(null)}
+              accessibilityRole="button"
+              accessibilityLabel="OK, keep reminders on"
+              className="rounded-lg bg-amber-200 px-3 py-1.5 active:bg-amber-300"
+            >
+              <Text className="text-sm font-medium text-amber-950">OK</Text>
+            </Pressable>
+          </View>
         </View>
       ) : null}
 
@@ -271,6 +301,23 @@ export function HomeScreen({ navigation }: Props) {
                     })}`
                   : ""}
               </Text>
+              {reminderMutedTaskIds.includes(item.id) ? (
+                <View className="mt-2 flex-row flex-wrap items-center gap-2">
+                  <Text className="text-xs text-amber-900">
+                    Reminders muted after Dismiss — tap Resume to get nudges again.
+                  </Text>
+                  <Pressable
+                    onPress={() => resumeRemindersForTask(item.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Resume reminders for ${item.title}`}
+                    className="rounded-lg bg-amber-200 px-3 py-1.5 active:bg-amber-300"
+                  >
+                    <Text className="text-xs font-semibold text-amber-950">
+                      Resume
+                    </Text>
+                  </Pressable>
+                </View>
+              ) : null}
               <Pressable
                 onPress={() => void removeTask(item.id)}
                 className="mt-3 self-start rounded-lg bg-red-50 px-3 py-2 active:bg-red-100"

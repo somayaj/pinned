@@ -52,7 +52,16 @@ type TasksContextValue = {
   removeTask: (id: string) => Promise<void>;
   /** Web: in-app banner when server broadcasts task_alert (app-like feedback in the tab). */
   taskAlert: { task: Task; reason: string } | null;
-  dismissTaskAlert: () => void;
+  /** Close the banner; nudges and alerts keep working. */
+  acknowledgeTaskAlert: () => void;
+  /** Close the banner and mute reminders for that pin until you tap Resume on the pin. */
+  dismissTaskAlertMuteReminders: () => void;
+  /** Mute nudges + web overlay for this task until Resume (fallback banner Dismiss). */
+  muteRemindersForTask: (taskId: string) => void;
+  /** Turn nudges and overlay back on for this pin. */
+  resumeRemindersForTask: (taskId: string) => void;
+  /** Task ids with reminders muted after Dismiss — until Resume or pin removed. */
+  reminderMutedTaskIds: readonly string[];
 };
 
 const TasksContext = createContext<TasksContextValue | null>(null);
@@ -68,9 +77,20 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     task: Task;
     reason: string;
   } | null>(null);
+  /** Pending web overlays when a new `task_alert` arrives while one is visible. */
+  const taskAlertQueueRef = useRef<{ task: Task; reason: string }[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const attemptRef = useRef(0);
+  const [reminderMutedTaskIds, setReminderMutedTaskIds] = useState<string[]>(
+    []
+  );
+  /** Latest muted ids for WebSocket handler (avoids reconnecting WS on mute changes). */
+  const reminderMutedIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    reminderMutedIdsRef.current = new Set(reminderMutedTaskIds);
+  }, [reminderMutedTaskIds]);
 
   const clearReconnect = useCallback(() => {
     if (reconnectTimer.current) {
@@ -88,8 +108,29 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     setTasks(list);
   }, [accessToken]);
 
-  const dismissTaskAlert = useCallback(() => {
-    setTaskAlert(null);
+  const acknowledgeTaskAlert = useCallback(() => {
+    setTaskAlert(() => taskAlertQueueRef.current.shift() ?? null);
+  }, []);
+
+  const dismissTaskAlertMuteReminders = useCallback(() => {
+    setTaskAlert((prev) => {
+      if (prev) {
+        const id = prev.task.id;
+        setReminderMutedTaskIds((m) => (m.includes(id) ? m : [...m, id]));
+        taskAlertQueueRef.current = taskAlertQueueRef.current.filter(
+          (e) => e.task.id !== id
+        );
+      }
+      return taskAlertQueueRef.current.shift() ?? null;
+    });
+  }, []);
+
+  const muteRemindersForTask = useCallback((taskId: string) => {
+    setReminderMutedTaskIds((m) => (m.includes(taskId) ? m : [...m, taskId]));
+  }, []);
+
+  const resumeRemindersForTask = useCallback((taskId: string) => {
+    setReminderMutedTaskIds((m) => m.filter((id) => id !== taskId));
   }, []);
 
   useEffect(() => {
@@ -98,6 +139,8 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
       setError(null);
       setTaskAlert(null);
+      taskAlertQueueRef.current = [];
+      setReminderMutedTaskIds([]);
       return;
     }
     let cancelled = false;
@@ -126,6 +169,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       void Notifications.setNotificationChannelAsync("reminders", {
         name: "Pin reminders",
         importance: Notifications.AndroidImportance.HIGH,
+        sound: "default",
         vibrationPattern: [0, 250, 250, 250],
         lightColor: "#0ea5e9",
       });
@@ -193,9 +237,12 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
           msg.type === "task_alert" &&
           msg.task
         ) {
-          setTaskAlert({
-            task: msg.task,
-            reason: msg.reason ?? "",
+          if (reminderMutedIdsRef.current.has(msg.task.id)) return;
+          const entry = { task: msg.task, reason: msg.reason ?? "" };
+          setTaskAlert((current) => {
+            if (current === null) return entry;
+            taskAlertQueueRef.current.push(entry);
+            return current;
           });
         }
       } catch {
@@ -246,6 +293,16 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     async (id: string) => {
       if (!accessToken) return;
       await api.deleteTask(apiBase, accessToken, id);
+      setReminderMutedTaskIds((m) => m.filter((x) => x !== id));
+      taskAlertQueueRef.current = taskAlertQueueRef.current.filter(
+        (e) => e.task.id !== id
+      );
+      setTaskAlert((cur) => {
+        if (cur?.task.id === id) {
+          return taskAlertQueueRef.current.shift() ?? null;
+        }
+        return cur;
+      });
       setTasks((prev) => prev.filter((t) => t.id !== id));
     },
     [apiBase, accessToken]
@@ -263,7 +320,11 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       addTask,
       removeTask,
       taskAlert,
-      dismissTaskAlert,
+      acknowledgeTaskAlert,
+      dismissTaskAlertMuteReminders,
+      muteRemindersForTask,
+      resumeRemindersForTask,
+      reminderMutedTaskIds,
     }),
     [
       tasks,
@@ -276,7 +337,11 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       addTask,
       removeTask,
       taskAlert,
-      dismissTaskAlert,
+      acknowledgeTaskAlert,
+      dismissTaskAlertMuteReminders,
+      muteRemindersForTask,
+      resumeRemindersForTask,
+      reminderMutedTaskIds,
     ]
   );
 
