@@ -1,7 +1,10 @@
 import { Router } from "express";
-import yahooFinance from "yahoo-finance2";
+import YahooFinance from "yahoo-finance2";
 import { z } from "zod";
 import * as store from "../store.js";
+
+/** v3 requires a constructed instance (see yahoo-finance2 UPGRADING.md). */
+const yahooFinance = new YahooFinance();
 
 export const stockRouter = Router();
 
