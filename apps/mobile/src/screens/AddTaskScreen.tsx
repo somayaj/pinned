@@ -59,7 +59,7 @@ export function AddTaskScreen({ navigation, route }: Props) {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={["bottom"]}>
+    <SafeAreaView className="flex-1 bg-red-50" edges={["bottom"]}>
       <ScrollView
         className="flex-1 px-4"
         keyboardShouldPersistTaps="handled"
@@ -83,7 +83,7 @@ export function AddTaskScreen({ navigation, route }: Props) {
           onChangeText={setTitle}
           placeholder="e.g. Pick up keys"
           placeholderTextColor="#94a3b8"
-          className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-900"
+          className="mt-2 rounded-xl border border-red-100 bg-white px-4 py-3 text-base text-slate-900"
         />
 
         <Text className="mt-6 text-xs font-medium uppercase text-slate-500">
@@ -97,7 +97,7 @@ export function AddTaskScreen({ navigation, route }: Props) {
           multiline
           numberOfLines={4}
           textAlignVertical="top"
-          className="mt-2 min-h-[100px] rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-900"
+          className="mt-2 min-h-[100px] rounded-xl border border-red-100 bg-white px-4 py-3 text-base text-slate-900"
         />
 
         <Text className="mt-6 text-xs font-medium uppercase text-slate-500">

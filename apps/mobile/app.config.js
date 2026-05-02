@@ -8,7 +8,7 @@ const GOOGLE_ANDROID =
   "559395124998-1s4vnrk1jcp3ii42o669udllcfa1iqt4.apps.googleusercontent.com";
 
 module.exports = {
-  name: "Pinned",
+  name: "PinIt",
   slug: "pinned",
   description: "Dropping a pin sets a reminder at a location.",
   version: "1.0.0",
@@ -27,7 +27,7 @@ module.exports = {
     bundleIdentifier: "app.pinned.mobile",
     infoPlist: {
       NSLocationWhenInUseUsageDescription:
-        "Pinned uses your location to remind you when you arrive at a saved pin.",
+        "PinIt uses your location to remind you when you arrive at a saved pin.",
     },
   },
   android: {
@@ -45,6 +45,8 @@ module.exports = {
   },
   web: {
     favicon: "./assets/favicon.png",
+    /** Shown in the browser tab title (alongside root `name`). */
+    name: "PinIt",
   },
   extra: {
     apiUrl:
@@ -63,9 +65,9 @@ module.exports = {
       "expo-location",
       {
         locationAlwaysAndWhenInUsePermission:
-          "Pinned uses your location to remind you when you reach a saved pin.",
+          "PinIt uses your location to remind you when you reach a saved pin.",
         locationWhenInUsePermission:
-          "Pinned uses your location to remind you when you reach a saved pin.",
+          "PinIt uses your location to remind you when you reach a saved pin.",
         isAndroidBackgroundLocationEnabled: false,
         isAndroidForegroundServiceEnabled: false,
       },

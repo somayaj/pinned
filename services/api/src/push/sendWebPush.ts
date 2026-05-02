@@ -83,7 +83,7 @@ export async function sendWebPushZoneEntry(
       ? ` — ${task.description.trim().slice(0, 200)}${task.description.length > 200 ? "…" : ""}`
       : "";
   const payload = JSON.stringify({
-    title: "Pinned",
+    title: "PinIt",
     body: atPlace
       ? `You're at: ${task.title}${detail}`
       : `Reminder: ${task.title}${detail}`,
@@ -116,7 +116,7 @@ export async function sendWebPushTest(userId: string): Promise<{
     };
   }
   const payload = JSON.stringify({
-    title: "Pinned",
+    title: "PinIt",
     body: "Test push — Web Push is working.",
     taskId: null,
   });

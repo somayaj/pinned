@@ -59,7 +59,7 @@ async function presentReminderForTask(task: Task): Promise<ReminderPresentation>
         const icon = `${origin}/pin-it-logo.svg`;
         const tag = `${task.id}-${Date.now()}`;
         playPinnedAlertSound();
-        new Notification("Pinned", {
+        new Notification("PinIt", {
           body,
           tag,
           icon,
@@ -74,7 +74,7 @@ async function presentReminderForTask(task: Task): Promise<ReminderPresentation>
   }
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: "Pinned",
+      title: "PinIt",
       body,
       data: { taskId: task.id },
       sound: true,

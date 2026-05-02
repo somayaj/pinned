@@ -6,6 +6,9 @@ import * as WebBrowser from "expo-web-browser";
 import { Platform } from "react-native";
 
 if (Platform.OS === "web") {
+  if (typeof document !== "undefined") {
+    document.title = "PinIt";
+  }
   try {
     WebBrowser.maybeCompleteAuthSession({
       skipRedirectCheck: __DEV__,

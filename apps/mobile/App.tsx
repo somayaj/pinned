@@ -1,6 +1,7 @@
 import "./global.css";
 import { StatusBar } from "expo-status-bar";
-import React from "react";
+import React, { useEffect } from "react";
+import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import { TasksProvider } from "./src/context/TasksContext";
@@ -31,6 +32,12 @@ function AuthenticatedApp() {
 }
 
 export default function App() {
+  useEffect(() => {
+    if (Platform.OS === "web" && typeof document !== "undefined") {
+      document.title = "PinIt";
+    }
+  }, []);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>

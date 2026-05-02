@@ -57,7 +57,7 @@ export function useNativeOsReminders(
           await Notifications.scheduleNotificationAsync({
             identifier: `${SCHED_PREFIX}${task.id}`,
             content: {
-              title: "Pinned",
+              title: "PinIt",
               body: `Reminder: ${task.title}`,
               data: { taskId: task.id, kind: "time_scheduled" },
               sound: true,

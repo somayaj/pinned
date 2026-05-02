@@ -36,7 +36,7 @@ export function TaskCard({
       : null;
 
   return (
-    <View className="mb-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <View className="mb-3 rounded-2xl border border-red-100 bg-white p-4 shadow-sm">
       <View className="flex-row items-start gap-2">
         {item.locationId ? (
           <View className="mt-0.5 rounded-lg bg-pin-50 p-1">

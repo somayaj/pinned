@@ -244,7 +244,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   if (!ready) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
+      <View className="flex-1 items-center justify-center bg-red-50">
         <ActivityIndicator size="large" color="#0284c7" />
         <Text className="mt-3 text-slate-500">Loading…</Text>
       </View>

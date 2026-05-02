@@ -3,7 +3,7 @@ import { Platform } from "react-native";
 import { getApiBaseUrl } from "./config";
 
 /** Nominatim requires a descriptive User-Agent per usage policy. */
-const NOMINATIM_UA = "Pinned/1.0 (https://expo.dev)";
+const NOMINATIM_UA = "PinIt/1.0 (https://expo.dev)";
 
 export type GeocodeResult = { latitude: number; longitude: number };
 

@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 
 /** Nominatim usage policy: identify the app. */
-const NOMINATIM_UA = "Pinned/1.0 (https://github.com/somayaj/pinned)";
+const NOMINATIM_UA = "PinIt/1.0 (https://github.com/somayaj/pinned)";
 
 /**
  * Public GET /geocode?q=... — server-side forward to Nominatim so the web app

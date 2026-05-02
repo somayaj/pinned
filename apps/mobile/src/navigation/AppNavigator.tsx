@@ -19,8 +19,23 @@ export function AppNavigator() {
   const { accessToken } = useAuth();
 
   return (
-    <NavigationContainer key={accessToken ?? "nav"}>
-      <Stack.Navigator initialRouteName="Home">
+    <NavigationContainer
+      key={accessToken ?? "nav"}
+      documentTitle={{
+        formatter: (options) =>
+          options?.title ? `${options.title} · PinIt` : "PinIt",
+      }}
+    >
+      <Stack.Navigator
+        initialRouteName="Home"
+        screenOptions={{
+          contentStyle: { backgroundColor: "#fef2f2" },
+          headerStyle: { backgroundColor: "#fef2f2" },
+          headerShadowVisible: false,
+          headerTintColor: "#0f172a",
+          headerTitleStyle: { color: "#0f172a", fontWeight: "600" },
+        }}
+      >
         <Stack.Screen
           name="Home"
           component={HomeScreen}

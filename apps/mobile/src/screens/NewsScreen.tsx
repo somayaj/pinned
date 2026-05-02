@@ -48,14 +48,14 @@ function HeadlineBlock({
       <Text className={`text-xs font-bold uppercase tracking-wide ${accentClass}`}>
         {title}
       </Text>
-      <View className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <View className="mt-2 overflow-hidden rounded-xl border border-red-100 bg-white">
         {items.map((h, i) => (
           <Pressable
             key={`${h.link}-${i}`}
             onPress={() => {
               if (h.link) void Linking.openURL(h.link);
             }}
-            className={`border-b border-slate-100 px-3 py-3 last:border-b-0 active:bg-slate-50`}
+            className={`border-b border-red-50 px-3 py-3 last:border-b-0 active:bg-red-50/90`}
           >
             <Text className="text-sm leading-snug text-slate-900">{h.title}</Text>
             {h.pubDate ? (
@@ -134,6 +134,7 @@ export function NewsScreen({ navigation }: Props) {
       });
       applyNewsSettingsSnapshot(saved);
       await refreshNewsSettings();
+      navigation.goBack();
     } catch (e) {
       Alert.alert(
         "News",
@@ -146,6 +147,7 @@ export function NewsScreen({ navigation }: Props) {
     accessToken,
     apiBase,
     applyNewsSettingsSnapshot,
+    navigation,
     pollMinutes,
     refreshNewsSettings,
   ]);
@@ -158,8 +160,8 @@ export function NewsScreen({ navigation }: Props) {
     : null;
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-50" edges={["bottom"]}>
-      <View className="flex-row items-center border-b border-slate-200 bg-white px-2 py-2">
+    <SafeAreaView className="flex-1 bg-red-50" edges={["bottom"]}>
+      <View className="flex-row items-center border-b border-red-100 bg-red-50 px-2 py-2">
         <Pressable onPress={() => navigation.goBack()} className="px-2 py-2">
           <Text className="text-pin-600">Back</Text>
         </Pressable>
@@ -192,7 +194,7 @@ export function NewsScreen({ navigation }: Props) {
               className={`rounded-full border px-3 py-2 ${
                 pollMinutes === m
                   ? "border-pin-600 bg-pin-50"
-                  : "border-slate-200 bg-white"
+                  : "border-red-100 bg-white"
               }`}
             >
               <Text

@@ -18,7 +18,7 @@ const parser = new RSSParser({
   timeout: 12_000,
   headers: {
     "User-Agent":
-      "pinned-api/1.0 (+https://github.com/somayaj/pinned; news headlines)",
+      "pin-it-api/1.0 (+https://github.com/somayaj/pinned; news headlines)",
   },
 });
 

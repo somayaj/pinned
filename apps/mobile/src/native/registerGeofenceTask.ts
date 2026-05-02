@@ -24,7 +24,7 @@ TaskManager.defineTask(GEOFENCE_TASK_NAME, async ({ data, error }) => {
   try {
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: "Pinned",
+        title: "PinIt",
         body: "You've arrived at a saved pin. Open the app for details.",
         data: { taskId, kind: "geofence_enter" },
         sound: true,

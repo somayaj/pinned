@@ -92,8 +92,8 @@ export function LocationDetailScreen({ navigation, route }: Props) {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-50" edges={["bottom"]}>
-      <View className="border-b border-slate-200 bg-white px-4 py-3">
+    <SafeAreaView className="flex-1 bg-red-50" edges={["bottom"]}>
+      <View className="border-b border-red-100 bg-red-50 px-4 py-3">
         <Text className="text-xs font-medium uppercase text-slate-500">
           Place
         </Text>

@@ -97,8 +97,8 @@ export function StocksScreen({ navigation }: Props) {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-50" edges={["bottom"]}>
-      <View className="flex-row items-center border-b border-slate-200 bg-white px-2 py-2">
+    <SafeAreaView className="flex-1 bg-red-50" edges={["bottom"]}>
+      <View className="flex-row items-center border-b border-red-100 bg-red-50 px-2 py-2">
         <Pressable onPress={() => navigation.goBack()} className="px-2 py-2">
           <Text className="text-pin-600">Back</Text>
         </Pressable>
@@ -128,7 +128,7 @@ export function StocksScreen({ navigation }: Props) {
             autoCapitalize="characters"
             autoCorrect={false}
             onSubmitEditing={addTicker}
-            className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900"
+            className="min-w-0 flex-1 rounded-xl border border-red-100 bg-white px-4 py-3 text-base text-slate-900"
           />
           <Pressable
             onPress={addTicker}
@@ -149,7 +149,7 @@ export function StocksScreen({ navigation }: Props) {
               <Pressable
                 key={s}
                 onPress={() => removeTicker(s)}
-                className="flex-row items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 active:bg-slate-100"
+                className="flex-row items-center gap-1 rounded-full border border-red-100 bg-white px-3 py-1.5 active:bg-red-50"
               >
                 <Text className="text-sm font-semibold text-slate-900">{s}</Text>
                 <Text className="text-xs text-slate-400">✕</Text>
@@ -169,7 +169,7 @@ export function StocksScreen({ navigation }: Props) {
               className={`rounded-full border px-3 py-2 ${
                 pollMinutes === m
                   ? "border-pin-600 bg-pin-50"
-                  : "border-slate-200 bg-white"
+                  : "border-red-100 bg-white"
               }`}
             >
               <Text
