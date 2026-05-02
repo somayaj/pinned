@@ -476,6 +476,45 @@ export async function updateUserProfile(
   );
 }
 
+export type StockWatchlistRow = {
+  symbols: string[];
+  pollIntervalMinutes: number;
+};
+
+export async function getStockWatchlist(
+  userId: string
+): Promise<StockWatchlistRow | null> {
+  const r = await pool.query<{
+    symbols: string[];
+    poll_interval_minutes: number;
+  }>(
+    `SELECT symbols, poll_interval_minutes
+     FROM stock_watchlist WHERE user_id = $1`,
+    [userId]
+  );
+  const row = r.rows[0];
+  if (!row) return null;
+  return {
+    symbols: Array.isArray(row.symbols) ? row.symbols : [],
+    pollIntervalMinutes: row.poll_interval_minutes,
+  };
+}
+
+export async function setStockWatchlist(
+  userId: string,
+  input: { symbols: string[]; pollIntervalMinutes: number }
+): Promise<void> {
+  await pool.query(
+    `INSERT INTO stock_watchlist (user_id, symbols, poll_interval_minutes, updated_at)
+     VALUES ($1, $2::text[], $3, now())
+     ON CONFLICT (user_id) DO UPDATE SET
+       symbols = EXCLUDED.symbols,
+       poll_interval_minutes = EXCLUDED.poll_interval_minutes,
+       updated_at = now()`,
+    [userId, input.symbols, input.pollIntervalMinutes]
+  );
+}
+
 export async function pingDb(): Promise<boolean> {
   await pool.query("SELECT 1");
   return true;

@@ -5,4 +5,5 @@ export type RootStackParamList = {
   AddTask: { locationId: string; locationName: string };
   AddTimeReminder: undefined;
   Settings: undefined;
+  Stocks: undefined;
 };

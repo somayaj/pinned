@@ -8,6 +8,7 @@ import { AddTimeReminderScreen } from "../screens/AddTimeReminderScreen";
 import { HomeScreen } from "../screens/HomeScreen";
 import { LocationDetailScreen } from "../screens/LocationDetailScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
+import { StocksScreen } from "../screens/StocksScreen";
 import type { RootStackParamList } from "./types";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -47,6 +48,11 @@ export function AppNavigator() {
         <Stack.Screen
           name="Settings"
           component={SettingsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Stocks"
+          component={StocksScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

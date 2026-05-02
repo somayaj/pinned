@@ -192,4 +192,23 @@ export async function migrate(): Promise<void> {
       ADD COLUMN sms_alerts BOOLEAN NOT NULL DEFAULT false
     `);
   }
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS stock_watchlist (
+      user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      symbols TEXT[] NOT NULL DEFAULT '{}',
+      poll_interval_minutes INTEGER NOT NULL DEFAULT 5
+        CHECK (poll_interval_minutes >= 1 AND poll_interval_minutes <= 60),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
+  await pool.query(`
+    ALTER TABLE stock_watchlist DROP CONSTRAINT IF EXISTS stock_watchlist_poll_interval_minutes_check;
+  `);
+  await pool.query(`
+    ALTER TABLE stock_watchlist
+    ADD CONSTRAINT stock_watchlist_poll_interval_minutes_check
+    CHECK (poll_interval_minutes >= 1 AND poll_interval_minutes <= 60);
+  `);
 }

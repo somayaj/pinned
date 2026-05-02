@@ -16,6 +16,7 @@ import {
   postPushTest,
 } from "./routes/push.js";
 import { locationRouter } from "./routes/locations.js";
+import { stockRouter } from "./routes/stocks.js";
 import { taskRouter } from "./routes/tasks.js";
 import * as store from "./store.js";
 import type { WsOutboundMessage } from "./types.js";
@@ -57,6 +58,7 @@ app.delete("/push/subscribe", requireAuth, deletePushSubscription);
 app.use("/auth", authRouter);
 app.use("/locations", requireAuth, locationRouter);
 app.use("/tasks", requireAuth, taskRouter);
+app.use("/stocks", requireAuth, stockRouter);
 
 const server = createServer(app);
 

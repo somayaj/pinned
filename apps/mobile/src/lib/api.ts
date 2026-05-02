@@ -227,6 +227,75 @@ export type UserProfile = {
   smsAlerts: boolean;
 };
 
+export type StockQuote = {
+  symbol: string;
+  price: number | null;
+  change: number | null;
+  changePercent: number | null;
+  currency: string;
+  shortName: string | null;
+};
+
+export type StockWatchlistResponse = {
+  symbols: string[];
+  pollIntervalMinutes: number;
+};
+
+export async function fetchStockWatchlist(
+  apiBase: string,
+  accessToken: string
+): Promise<StockWatchlistResponse> {
+  const res = await fetch(`${apiBase.replace(/\/$/, "")}/stocks/watchlist`, {
+    headers: authHeaders(accessToken),
+  });
+  if (res.status === 401) throw new Error("session_expired");
+  if (!res.ok) throw new Error(`Stocks watchlist failed: ${res.status}`);
+  return res.json() as Promise<StockWatchlistResponse>;
+}
+
+export async function putStockWatchlist(
+  apiBase: string,
+  accessToken: string,
+  body: { symbols: string[]; pollIntervalMinutes?: number }
+): Promise<StockWatchlistResponse> {
+  const res = await fetch(`${apiBase.replace(/\/$/, "")}/stocks/watchlist`, {
+    method: "PUT",
+    headers: authHeaders(accessToken, true),
+    body: JSON.stringify(body),
+  });
+  if (res.status === 401) throw new Error("session_expired");
+  if (!res.ok) {
+    const t = await res.text();
+    let msg = t || `Stocks save failed: ${res.status}`;
+    try {
+      const j = JSON.parse(t) as { error?: unknown };
+      if (typeof j.error === "string") msg = j.error;
+    } catch {
+      /* keep msg */
+    }
+    throw new Error(msg);
+  }
+  return res.json() as Promise<StockWatchlistResponse>;
+}
+
+export async function fetchStockQuotes(
+  apiBase: string,
+  accessToken: string,
+  symbols: string[]
+): Promise<{ quotes: StockQuote[]; fetchedAt: string }> {
+  if (symbols.length === 0) {
+    return { quotes: [], fetchedAt: new Date().toISOString() };
+  }
+  const q = encodeURIComponent(symbols.join(","));
+  const res = await fetch(
+    `${apiBase.replace(/\/$/, "")}/stocks/quotes?symbols=${q}`,
+    { headers: authHeaders(accessToken) }
+  );
+  if (res.status === 401) throw new Error("session_expired");
+  if (!res.ok) throw new Error(`Stock quotes failed: ${res.status}`);
+  return res.json() as Promise<{ quotes: StockQuote[]; fetchedAt: string }>;
+}
+
 export async function fetchUserProfile(
   apiBase: string,
   accessToken: string
