@@ -61,6 +61,19 @@ export async function migrate(): Promise<void> {
     `);
   }
 
+  const descCol = await pool.query<{ exists: boolean }>(
+    `SELECT EXISTS (
+       SELECT 1 FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'tasks' AND column_name = 'description'
+     ) AS exists`
+  );
+  if (!descCol.rows[0]?.exists) {
+    await pool.query(`
+      ALTER TABLE tasks
+      ADD COLUMN description TEXT
+    `);
+  }
+
   /** Time-only reminders: no map pin — lat/lon/radius NULL, remind_at required. */
   const pinOrTime = await pool.query<{ exists: boolean }>(
     `SELECT EXISTS (
@@ -105,4 +118,56 @@ export async function migrate(): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS web_push_user_idx ON web_push_subscriptions (user_id);
   `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS locations (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      description TEXT,
+      latitude DOUBLE PRECISION NOT NULL,
+      longitude DOUBLE PRECISION NOT NULL,
+      radius_meters INTEGER NOT NULL CHECK (radius_meters >= 10 AND radius_meters <= 50000),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS locations_user_created_idx ON locations (user_id, created_at DESC);
+  `);
+
+  const locFk = await pool.query<{ exists: boolean }>(
+    `SELECT EXISTS (
+       SELECT 1 FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'tasks' AND column_name = 'location_id'
+     ) AS exists`
+  );
+  if (!locFk.rows[0]?.exists) {
+    await pool.query(`
+      ALTER TABLE tasks
+      ADD COLUMN location_id TEXT REFERENCES locations(id) ON DELETE CASCADE
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS tasks_location_id_idx ON tasks (location_id)
+    `);
+    await pool.query(`
+      ALTER TABLE tasks DROP CONSTRAINT IF EXISTS tasks_pin_or_time
+    `);
+    await pool.query(`
+      ALTER TABLE tasks ADD CONSTRAINT tasks_pin_or_time_v2 CHECK (
+        (
+          location_id IS NOT NULL
+          AND latitude IS NULL AND longitude IS NULL AND radius_meters IS NULL
+        )
+        OR
+        (
+          location_id IS NULL
+          AND latitude IS NOT NULL AND longitude IS NOT NULL AND radius_meters IS NOT NULL
+        )
+        OR
+        (
+          location_id IS NULL
+          AND latitude IS NULL AND longitude IS NULL AND radius_meters IS NULL
+          AND remind_at IS NOT NULL
+        )
+      )
+    `);
+  }
 }

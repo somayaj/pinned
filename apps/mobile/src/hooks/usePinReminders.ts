@@ -17,9 +17,13 @@ function isPinTask(task: Task): boolean {
 }
 
 function reminderNotificationBody(task: Task): string {
-  return isPinTask(task)
+  const base = isPinTask(task)
     ? `You're at: ${task.title}`
     : `Reminder: ${task.title}`;
+  const d = task.description?.trim();
+  if (!d) return base;
+  const extra = d.length > 200 ? `${d.slice(0, 200)}…` : d;
+  return `${base} — ${extra}`;
 }
 
 /** While inside a pin, repeat nudge + notification at this interval. */

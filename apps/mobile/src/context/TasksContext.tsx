@@ -16,6 +16,7 @@ import {
   setApiBaseUrl,
   toWebSocketUrl,
 } from "../lib/config";
+import type { Location } from "../types/location";
 import type { Task } from "../types/task";
 import { useAuth } from "./AuthContext";
 
@@ -36,6 +37,7 @@ type WsStatus = "off" | "connecting" | "on";
 
 type TasksContextValue = {
   tasks: Task[];
+  locations: Location[];
   apiBase: string;
   setApiBase: (url: string) => Promise<void>;
   wsStatus: WsStatus;
@@ -44,11 +46,21 @@ type TasksContextValue = {
   refresh: () => Promise<void>;
   addTask: (input: {
     title: string;
-    latitude: number | null;
-    longitude: number | null;
-    radiusMeters: number | null;
+    description?: string | null;
+    locationId?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    radiusMeters?: number | null;
     remindAt: string | null;
   }) => Promise<void>;
+  addLocation: (input: {
+    name: string;
+    description?: string | null;
+    latitude: number;
+    longitude: number;
+    radiusMeters: number;
+  }) => Promise<Location>;
+  removeLocation: (id: string) => Promise<void>;
   removeTask: (id: string) => Promise<void>;
   /** Web: in-app banner when server broadcasts task_alert (app-like feedback in the tab). */
   taskAlert: { task: Task; reason: string } | null;
@@ -69,6 +81,7 @@ const TasksContext = createContext<TasksContextValue | null>(null);
 export function TasksProvider({ children }: { children: React.ReactNode }) {
   const { accessToken } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [apiBase, setApiBaseState] = useState(DEFAULT_API_BASE);
   const [wsStatus, setWsStatus] = useState<WsStatus>("off");
   const [loading, setLoading] = useState(true);
@@ -104,8 +117,12 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     const base = await getApiBaseUrl();
     setApiBaseState(base);
     setError(null);
-    const list = await api.fetchTasks(base, accessToken);
+    const [list, locs] = await Promise.all([
+      api.fetchTasks(base, accessToken),
+      api.fetchLocations(base, accessToken),
+    ]);
     setTasks(list);
+    setLocations(locs);
   }, [accessToken]);
 
   const acknowledgeTaskAlert = useCallback(() => {
@@ -136,6 +153,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!accessToken) {
       setTasks([]);
+      setLocations([]);
       setLoading(false);
       setError(null);
       setTaskAlert(null);
@@ -148,8 +166,14 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       try {
         const base = await getApiBaseUrl();
         if (!cancelled) setApiBaseState(base);
-        const list = await api.fetchTasks(base, accessToken);
-        if (!cancelled) setTasks(list);
+        const [list, locs] = await Promise.all([
+          api.fetchTasks(base, accessToken),
+          api.fetchLocations(base, accessToken),
+        ]);
+        if (!cancelled) {
+          setTasks(list);
+          setLocations(locs);
+        }
       } catch (e) {
         if (!cancelled) {
           const msg = e instanceof Error ? e.message : "Could not load tasks";
@@ -184,8 +208,12 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       setError(null);
       if (!accessToken) return;
       try {
-        const list = await api.fetchTasks(normalized, accessToken);
+        const [list, locs] = await Promise.all([
+          api.fetchTasks(normalized, accessToken),
+          api.fetchLocations(normalized, accessToken),
+        ]);
         setTasks(list);
+        setLocations(locs);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Could not load tasks");
       }
@@ -231,6 +259,15 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
         };
         if (msg.type === "tasks_updated" && Array.isArray(msg.tasks)) {
           setTasks(msg.tasks);
+          void (async () => {
+            try {
+              const base = await getApiBaseUrl();
+              const locs = await api.fetchLocations(base, accessToken);
+              setLocations(locs);
+            } catch {
+              /* ignore */
+            }
+          })();
         }
         if (
           Platform.OS === "web" &&
@@ -277,14 +314,42 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   const addTask = useCallback(
     async (input: {
       title: string;
-      latitude: number | null;
-      longitude: number | null;
-      radiusMeters: number | null;
+      description?: string | null;
+      locationId?: string | null;
+      latitude?: number | null;
+      longitude?: number | null;
+      radiusMeters?: number | null;
       remindAt: string | null;
     }) => {
       if (!accessToken) return;
       const task = await api.createTask(apiBase, accessToken, input);
       setTasks((prev) => [task, ...prev.filter((t) => t.id !== task.id)]);
+    },
+    [apiBase, accessToken]
+  );
+
+  const addLocation = useCallback(
+    async (input: {
+      name: string;
+      description?: string | null;
+      latitude: number;
+      longitude: number;
+      radiusMeters: number;
+    }) => {
+      if (!accessToken) throw new Error("Not signed in");
+      const loc = await api.createLocation(apiBase, accessToken, input);
+      setLocations((prev) => [loc, ...prev.filter((l) => l.id !== loc.id)]);
+      return loc;
+    },
+    [apiBase, accessToken]
+  );
+
+  const removeLocation = useCallback(
+    async (id: string) => {
+      if (!accessToken) return;
+      await api.deleteLocation(apiBase, accessToken, id);
+      setLocations((prev) => prev.filter((l) => l.id !== id));
+      setTasks((prev) => prev.filter((t) => t.locationId !== id));
     },
     [apiBase, accessToken]
   );
@@ -311,6 +376,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo(
     () => ({
       tasks,
+      locations,
       apiBase,
       setApiBase,
       wsStatus,
@@ -318,6 +384,8 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       error,
       refresh,
       addTask,
+      addLocation,
+      removeLocation,
       removeTask,
       taskAlert,
       acknowledgeTaskAlert,
@@ -328,6 +396,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       tasks,
+      locations,
       apiBase,
       setApiBase,
       wsStatus,
@@ -335,6 +404,8 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       error,
       refresh,
       addTask,
+      addLocation,
+      removeLocation,
       removeTask,
       taskAlert,
       acknowledgeTaskAlert,

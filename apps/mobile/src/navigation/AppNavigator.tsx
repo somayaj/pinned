@@ -2,32 +2,47 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React from "react";
 import { useAuth } from "../context/AuthContext";
-import { AddPinScreen } from "../screens/AddPinScreen";
+import { AddLocationScreen } from "../screens/AddLocationScreen";
+import { AddTaskScreen } from "../screens/AddTaskScreen";
+import { AddTimeReminderScreen } from "../screens/AddTimeReminderScreen";
 import { HomeScreen } from "../screens/HomeScreen";
+import { LocationDetailScreen } from "../screens/LocationDetailScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
 import type { RootStackParamList } from "./types";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-/**
- * Only mounts when the user has a session. First screen is Add pin (map) so
- * post–sign-in flow goes: Sign in → map → optional “My pins” to the list.
- */
+/** Signed-in stack: home lists places and time reminders; add place → tasks per place. */
 export function AppNavigator() {
   const { accessToken } = useAuth();
 
   return (
     <NavigationContainer key={accessToken ?? "nav"}>
-      <Stack.Navigator initialRouteName="AddPin">
-        <Stack.Screen
-          name="AddPin"
-          component={AddPinScreen}
-          options={{ title: "Add pin", headerShown: true }}
-        />
+      <Stack.Navigator initialRouteName="Home">
         <Stack.Screen
           name="Home"
           component={HomeScreen}
           options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="AddLocation"
+          component={AddLocationScreen}
+          options={{ title: "New place", headerShown: true }}
+        />
+        <Stack.Screen
+          name="LocationDetail"
+          component={LocationDetailScreen}
+          options={{ headerShown: true }}
+        />
+        <Stack.Screen
+          name="AddTask"
+          component={AddTaskScreen}
+          options={{ headerShown: true }}
+        />
+        <Stack.Screen
+          name="AddTimeReminder"
+          component={AddTimeReminderScreen}
+          options={{ title: "Time reminder", headerShown: true }}
         />
         <Stack.Screen
           name="Settings"

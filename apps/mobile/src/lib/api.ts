@@ -1,3 +1,4 @@
+import type { Location } from "../types/location";
 import type { Task } from "../types/task";
 
 function authHeaders(accessToken: string, json = false): HeadersInit {
@@ -8,11 +9,51 @@ function authHeaders(accessToken: string, json = false): HeadersInit {
   return h;
 }
 
+/**
+ * Optional filters for `GET /tasks` (map pins only; time-only tasks are excluded when any filter is used).
+ * - **center** — pin centers within `centerRadiusMeters` of `(centerLat, centerLon)` (default radius 100 m).
+ * - **contains** — pins whose geofence contains `(containsLat, containsLon)`.
+ * Both can be combined (AND).
+ */
+export type FetchTasksLocationParams = {
+  /** Only tasks created for this saved location. */
+  locationId?: string;
+  centerLat?: number;
+  centerLon?: number;
+  centerRadiusMeters?: number;
+  containsLat?: number;
+  containsLon?: number;
+};
+
+function tasksUrl(
+  apiBase: string,
+  location?: FetchTasksLocationParams
+): string {
+  const base = `${apiBase.replace(/\/$/, "")}/tasks`;
+  if (!location) return base;
+  const p = new URLSearchParams();
+  if (location.locationId != null)
+    p.set("locationId", location.locationId);
+  if (location.centerLat != null)
+    p.set("centerLat", String(location.centerLat));
+  if (location.centerLon != null)
+    p.set("centerLon", String(location.centerLon));
+  if (location.centerRadiusMeters != null)
+    p.set("centerRadiusMeters", String(location.centerRadiusMeters));
+  if (location.containsLat != null)
+    p.set("containsLat", String(location.containsLat));
+  if (location.containsLon != null)
+    p.set("containsLon", String(location.containsLon));
+  const qs = p.toString();
+  return qs ? `${base}?${qs}` : base;
+}
+
 export async function fetchTasks(
   apiBase: string,
-  accessToken: string
+  accessToken: string,
+  location?: FetchTasksLocationParams
 ): Promise<Task[]> {
-  const res = await fetch(`${apiBase}/tasks`, {
+  const res = await fetch(tasksUrl(apiBase, location), {
     headers: authHeaders(accessToken),
   });
   if (res.status === 401) {
@@ -25,14 +66,67 @@ export async function fetchTasks(
   return data.tasks;
 }
 
+export async function fetchLocations(
+  apiBase: string,
+  accessToken: string
+): Promise<Location[]> {
+  const res = await fetch(`${apiBase.replace(/\/$/, "")}/locations`, {
+    headers: authHeaders(accessToken),
+  });
+  if (res.status === 401) throw new Error("session_expired");
+  if (!res.ok) throw new Error(`Locations failed: ${res.status}`);
+  const data = (await res.json()) as { locations: Location[] };
+  return data.locations;
+}
+
+export async function createLocation(
+  apiBase: string,
+  accessToken: string,
+  body: {
+    name: string;
+    description?: string | null;
+    latitude: number;
+    longitude: number;
+    radiusMeters: number;
+  }
+): Promise<Location> {
+  const res = await fetch(`${apiBase.replace(/\/$/, "")}/locations`, {
+    method: "POST",
+    headers: authHeaders(accessToken, true),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(err || `Create location failed: ${res.status}`);
+  }
+  const data = (await res.json()) as { location: Location };
+  return data.location;
+}
+
+export async function deleteLocation(
+  apiBase: string,
+  accessToken: string,
+  id: string
+): Promise<void> {
+  const res = await fetch(`${apiBase.replace(/\/$/, "")}/locations/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(accessToken),
+  });
+  if (!res.ok && res.status !== 204) {
+    throw new Error(`Delete location failed: ${res.status}`);
+  }
+}
+
 export async function createTask(
   apiBase: string,
   accessToken: string,
   body: {
     title: string;
-    latitude: number | null;
-    longitude: number | null;
-    radiusMeters: number | null;
+    description?: string | null;
+    locationId?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    radiusMeters?: number | null;
     remindAt: string | null;
   }
 ): Promise<Task> {

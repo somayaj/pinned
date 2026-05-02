@@ -1,6 +1,6 @@
 import { nanoid } from "nanoid";
 import type { GoogleProfile } from "./auth/googleVerify.js";
-import type { Task } from "./types.js";
+import type { Location, Task } from "./types.js";
 import { pool } from "./db/pool.js";
 
 export type AppUser = {
@@ -13,6 +13,8 @@ export type AppUser = {
 function rowToTask(row: {
   id: string;
   title: string;
+  description: string | null;
+  location_id: string | null;
   latitude: string | number | null;
   longitude: string | number | null;
   radius_meters: number | null;
@@ -22,6 +24,8 @@ function rowToTask(row: {
   return {
     id: row.id,
     title: row.title,
+    description: row.description ?? null,
+    locationId: row.location_id ?? null,
     latitude:
       row.latitude === null || row.latitude === undefined
         ? null
@@ -35,6 +39,41 @@ function rowToTask(row: {
     createdAt: row.created_at.toISOString(),
   };
 }
+
+function rowToLocation(row: {
+  id: string;
+  name: string;
+  description: string | null;
+  latitude: string | number;
+  longitude: string | number;
+  radius_meters: number;
+  created_at: Date;
+}): Location {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description ?? null,
+    latitude: Number(row.latitude),
+    longitude: Number(row.longitude),
+    radiusMeters: row.radius_meters,
+    createdAt: row.created_at.toISOString(),
+  };
+}
+
+const taskSelect = `
+  SELECT
+    t.id,
+    t.title,
+    t.description,
+    t.location_id,
+    t.remind_at,
+    t.created_at,
+    COALESCE(l.latitude, t.latitude) AS latitude,
+    COALESCE(l.longitude, t.longitude) AS longitude,
+    COALESCE(l.radius_meters, t.radius_meters) AS radius_meters
+  FROM tasks t
+  LEFT JOIN locations l ON l.id = t.location_id
+`;
 
 export async function findOrCreateUserFromGoogle(
   profile: GoogleProfile
@@ -78,21 +117,30 @@ export async function findOrCreateUserFromGoogle(
   };
 }
 
-export async function listTasks(userId: string): Promise<Task[]> {
+export async function listTasks(
+  userId: string,
+  opts?: { locationId?: string }
+): Promise<Task[]> {
+  const hasLoc = opts?.locationId != null && opts.locationId !== "";
   const result = await pool.query<{
     id: string;
     title: string;
+    description: string | null;
+    location_id: string | null;
     latitude: string | null;
     longitude: string | null;
     radius_meters: number | null;
     remind_at: Date | null;
     created_at: Date;
   }>(
-    `SELECT id, title, latitude, longitude, radius_meters, remind_at, created_at
-     FROM tasks
-     WHERE user_id = $1
-     ORDER BY created_at DESC`,
-    [userId]
+    hasLoc
+      ? `${taskSelect}
+         WHERE t.user_id = $1 AND t.location_id = $2
+         ORDER BY t.created_at DESC`
+      : `${taskSelect}
+         WHERE t.user_id = $1
+         ORDER BY t.created_at DESC`,
+    hasLoc ? [userId, opts!.locationId] : [userId]
   );
   return result.rows.map(rowToTask);
 }
@@ -104,14 +152,16 @@ export async function getTask(
   const result = await pool.query<{
     id: string;
     title: string;
+    description: string | null;
+    location_id: string | null;
     latitude: string | null;
     longitude: string | null;
     radius_meters: number | null;
     remind_at: Date | null;
     created_at: Date;
   }>(
-    `SELECT id, title, latitude, longitude, radius_meters, remind_at, created_at
-     FROM tasks WHERE id = $1 AND user_id = $2`,
+    `${taskSelect}
+     WHERE t.id = $1 AND t.user_id = $2`,
     [id, userId]
   );
   const row = result.rows[0];
@@ -122,13 +172,61 @@ export async function createTask(
   userId: string,
   input: {
     title: string;
-    latitude: number | null;
-    longitude: number | null;
-    radiusMeters: number | null;
+    description: string | null;
     remindAt: Date | null;
+    locationId?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    radiusMeters?: number | null;
   }
 ): Promise<Task> {
   const id = nanoid();
+  const desc =
+    input.description == null || input.description.trim() === ""
+      ? null
+      : input.description.trim();
+
+  if (input.locationId != null && input.locationId !== "") {
+    const own = await pool.query<{ n: string }>(
+      `SELECT id AS n FROM locations WHERE id = $1 AND user_id = $2`,
+      [input.locationId, userId]
+    );
+    if (own.rows.length === 0) {
+      throw new Error("location_not_found");
+    }
+    const result = await pool.query<{
+      id: string;
+      title: string;
+      description: string | null;
+      location_id: string | null;
+      latitude: string | null;
+      longitude: string | null;
+      radius_meters: number | null;
+      remind_at: Date | null;
+      created_at: Date;
+    }>(
+      `INSERT INTO tasks (id, user_id, location_id, title, description, latitude, longitude, radius_meters, remind_at)
+       VALUES ($1, $2, $3, $4, $5, NULL, NULL, NULL, $6)
+       RETURNING id, title, description, location_id, latitude, longitude, radius_meters, remind_at, created_at`,
+      [id, userId, input.locationId, input.title.trim(), desc, input.remindAt]
+    );
+    const full = await pool.query<{
+      id: string;
+      title: string;
+      description: string | null;
+      location_id: string | null;
+      latitude: string | null;
+      longitude: string | null;
+      radius_meters: number | null;
+      remind_at: Date | null;
+      created_at: Date;
+    }>(
+      `${taskSelect} WHERE t.id = $1`,
+      [result.rows[0].id]
+    );
+    return rowToTask(full.rows[0]);
+  }
+
   const radiusMeters =
     input.radiusMeters == null
       ? null
@@ -136,31 +234,112 @@ export async function createTask(
   const result = await pool.query<{
     id: string;
     title: string;
+    description: string | null;
+    location_id: string | null;
     latitude: string | null;
     longitude: string | null;
     radius_meters: number | null;
     remind_at: Date | null;
     created_at: Date;
   }>(
-    `INSERT INTO tasks (id, user_id, title, latitude, longitude, radius_meters, remind_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
-     RETURNING id, title, latitude, longitude, radius_meters, remind_at, created_at`,
+    `INSERT INTO tasks (id, user_id, location_id, title, description, latitude, longitude, radius_meters, remind_at)
+     VALUES ($1, $2, NULL, $3, $4, $5, $6, $7, $8)
+     RETURNING id, title, description, location_id, latitude, longitude, radius_meters, remind_at, created_at`,
     [
       id,
       userId,
       input.title.trim(),
+      desc,
       input.latitude,
       input.longitude,
       radiusMeters,
       input.remindAt,
     ]
   );
-  return rowToTask(result.rows[0]);
+  const full = await pool.query<{
+    id: string;
+    title: string;
+    description: string | null;
+    location_id: string | null;
+    latitude: string | null;
+    longitude: string | null;
+    radius_meters: number | null;
+    remind_at: Date | null;
+    created_at: Date;
+  }>(`${taskSelect} WHERE t.id = $1`, [result.rows[0].id]);
+  return rowToTask(full.rows[0]);
 }
 
 export async function deleteTask(userId: string, id: string): Promise<boolean> {
   const result = await pool.query(
     `DELETE FROM tasks WHERE id = $1 AND user_id = $2`,
+    [id, userId]
+  );
+  return result.rowCount !== null && result.rowCount > 0;
+}
+
+export async function listLocations(userId: string): Promise<Location[]> {
+  const result = await pool.query<{
+    id: string;
+    name: string;
+    description: string | null;
+    latitude: string;
+    longitude: string;
+    radius_meters: number;
+    created_at: Date;
+  }>(
+    `SELECT id, name, description, latitude, longitude, radius_meters, created_at
+     FROM locations
+     WHERE user_id = $1
+     ORDER BY created_at DESC`,
+    [userId]
+  );
+  return result.rows.map(rowToLocation);
+}
+
+export async function createLocation(
+  userId: string,
+  input: {
+    name: string;
+    description: string | null;
+    latitude: number;
+    longitude: number;
+    radiusMeters: number;
+  }
+): Promise<Location> {
+  const id = nanoid();
+  const r = Math.max(10, Math.round(input.radiusMeters));
+  const result = await pool.query<{
+    id: string;
+    name: string;
+    description: string | null;
+    latitude: string;
+    longitude: string;
+    radius_meters: number;
+    created_at: Date;
+  }>(
+    `INSERT INTO locations (id, user_id, name, description, latitude, longitude, radius_meters)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     RETURNING id, name, description, latitude, longitude, radius_meters, created_at`,
+    [
+      id,
+      userId,
+      input.name.trim(),
+      input.description,
+      input.latitude,
+      input.longitude,
+      r,
+    ]
+  );
+  return rowToLocation(result.rows[0]);
+}
+
+export async function deleteLocation(
+  userId: string,
+  id: string
+): Promise<boolean> {
+  const result = await pool.query(
+    `DELETE FROM locations WHERE id = $1 AND user_id = $2`,
     [id, userId]
   );
   return result.rowCount !== null && result.rowCount > 0;
