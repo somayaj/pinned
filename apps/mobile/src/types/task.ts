@@ -1,10 +1,11 @@
 export interface Task {
   id: string;
   title: string;
-  latitude: number;
-  longitude: number;
-  radiusMeters: number;
-  /** ISO 8601 — only remind after this moment when in the zone. Null/omit = any time. */
+  /** Map pin; null for time-only reminders. */
+  latitude: number | null;
+  longitude: number | null;
+  radiusMeters: number | null;
+  /** Pin: optional “not before” in zone. Time-only: when reminders start. */
   remindAt?: string | null;
   createdAt: string;
 }

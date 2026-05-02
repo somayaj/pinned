@@ -76,9 +76,13 @@ export async function sendWebPushZoneEntry(
   userId: string,
   task: Task
 ): Promise<void> {
+  const atPlace =
+    task.latitude != null && task.longitude != null && task.radiusMeters != null;
   const payload = JSON.stringify({
     title: "Pinned",
-    body: `You're at: ${task.title}`,
+    body: atPlace
+      ? `You're at: ${task.title}`
+      : `Reminder: ${task.title}`,
     taskId: task.id,
   });
   const { sent, failed, subscriptionCount } = await sendPayloadToAllSubscriptions(

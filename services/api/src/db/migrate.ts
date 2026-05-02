@@ -61,6 +61,39 @@ export async function migrate(): Promise<void> {
     `);
   }
 
+  /** Time-only reminders: no map pin — lat/lon/radius NULL, remind_at required. */
+  const pinOrTime = await pool.query<{ exists: boolean }>(
+    `SELECT EXISTS (
+       SELECT 1 FROM pg_constraint WHERE conname = 'tasks_pin_or_time'
+     ) AS exists`
+  );
+  if (!pinOrTime.rows[0]?.exists) {
+    await pool.query(`
+      ALTER TABLE tasks DROP CONSTRAINT IF EXISTS tasks_radius_meters_check
+    `);
+    await pool.query(`
+      ALTER TABLE tasks ALTER COLUMN latitude DROP NOT NULL
+    `);
+    await pool.query(`
+      ALTER TABLE tasks ALTER COLUMN longitude DROP NOT NULL
+    `);
+    await pool.query(`
+      ALTER TABLE tasks ALTER COLUMN radius_meters DROP NOT NULL
+    `);
+    await pool.query(`
+      ALTER TABLE tasks ADD CONSTRAINT tasks_radius_meters_valid CHECK (
+        radius_meters IS NULL OR (radius_meters >= 10 AND radius_meters <= 50000)
+      )
+    `);
+    await pool.query(`
+      ALTER TABLE tasks ADD CONSTRAINT tasks_pin_or_time CHECK (
+        (latitude IS NOT NULL AND longitude IS NOT NULL AND radius_meters IS NOT NULL)
+        OR
+        (latitude IS NULL AND longitude IS NULL AND radius_meters IS NULL AND remind_at IS NOT NULL)
+      )
+    `);
+  }
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS web_push_subscriptions (
       id TEXT PRIMARY KEY,

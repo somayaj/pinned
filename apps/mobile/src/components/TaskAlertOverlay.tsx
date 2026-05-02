@@ -33,9 +33,13 @@ export function TaskAlertOverlay() {
   const subtitle =
     reason === "zone_entry"
       ? "You’re in range of this pin."
-      : reason === "new_task"
-        ? "New pin saved."
-        : "";
+      : reason === "time_reminder"
+        ? "Scheduled reminder."
+        : reason === "new_task"
+          ? task.latitude != null
+            ? "New pin saved."
+            : "New reminder saved."
+          : "";
 
   return (
     <View

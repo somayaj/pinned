@@ -8,6 +8,20 @@ import * as api from "../lib/api";
 import { distanceMeters } from "../lib/geo";
 import type { Task } from "../types/task";
 
+function isPinTask(task: Task): boolean {
+  return (
+    task.latitude != null &&
+    task.longitude != null &&
+    task.radiusMeters != null
+  );
+}
+
+function reminderNotificationBody(task: Task): string {
+  return isPinTask(task)
+    ? `You're at: ${task.title}`
+    : `Reminder: ${task.title}`;
+}
+
 /** While inside a pin, repeat nudge + notification at this interval. */
 const NUDGE_INTERVAL_MS = 60_000;
 /** Re-evaluate reminders on a timer — GPS callbacks often stop when you stand still (esp. web). */
@@ -29,7 +43,7 @@ type ReminderPresentation = "web_os" | "native" | "web_fallback";
  * Each OS notification uses a unique `tag` so repeats and multiple pins do not replace each other.
  */
 async function presentReminderForTask(task: Task): Promise<ReminderPresentation> {
-  const body = `You're at: ${task.title}`;
+  const body = reminderNotificationBody(task);
   if (canUseBrowserNotifications()) {
     try {
       if (Notification.permission === "default") {
@@ -122,13 +136,36 @@ export function usePinReminders(
       const webFallbackBatch: Task[] = [];
 
       for (const task of tasks) {
+        if (!isPinTask(task)) {
+          if (!task.remindAt || task.remindAt === "") continue;
+          if (now < new Date(task.remindAt).getTime()) continue;
+          if (mutedByDismiss.has(task.id)) continue;
+
+          const lastNudge = lastNudgeAtRef.current.get(task.id);
+          if (lastNudge != null && now - lastNudge < NUDGE_INTERVAL_MS) {
+            continue;
+          }
+
+          try {
+            const mode = await presentReminderForTask(task);
+            if (mode === "web_fallback") {
+              webFallbackBatch.push(task);
+            }
+            await api.nudgeTask(apiBase, accessToken, task.id);
+            lastNudgeAtRef.current.set(task.id, Date.now());
+          } catch {
+            /* ignore */
+          }
+          continue;
+        }
+
         const d = distanceMeters(
           latitude,
           longitude,
-          task.latitude,
-          task.longitude
+          task.latitude as number,
+          task.longitude as number
         );
-        const inside = d <= task.radiusMeters;
+        const inside = d <= (task.radiusMeters as number);
 
         if (!inside) {
           insideRef.current.set(task.id, false);
@@ -171,13 +208,25 @@ export function usePinReminders(
       }
     };
 
-    (async () => {
-      const locPerm = await Location.requestForegroundPermissionsAsync();
-      if (locPerm.status !== "granted" || cancelled) return;
+    const needsLocation = tasks.some(isPinTask);
 
+    (async () => {
       if (Platform.OS !== "web") {
         await Notifications.requestPermissionsAsync();
       }
+
+      if (cancelled) return;
+
+      if (!needsLocation) {
+        tickId = setInterval(() => {
+          if (!cancelled) void runScan(0, 0);
+        }, LOCATION_TICK_MS);
+        await runScan(0, 0);
+        return;
+      }
+
+      const locPerm = await Location.requestForegroundPermissionsAsync();
+      if (locPerm.status !== "granted" || cancelled) return;
 
       if (cancelled) return;
 

@@ -44,9 +44,9 @@ type TasksContextValue = {
   refresh: () => Promise<void>;
   addTask: (input: {
     title: string;
-    latitude: number;
-    longitude: number;
-    radiusMeters: number;
+    latitude: number | null;
+    longitude: number | null;
+    radiusMeters: number | null;
     remindAt: string | null;
   }) => Promise<void>;
   removeTask: (id: string) => Promise<void>;
@@ -277,9 +277,9 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   const addTask = useCallback(
     async (input: {
       title: string;
-      latitude: number;
-      longitude: number;
-      radiusMeters: number;
+      latitude: number | null;
+      longitude: number | null;
+      radiusMeters: number | null;
       remindAt: string | null;
     }) => {
       if (!accessToken) return;

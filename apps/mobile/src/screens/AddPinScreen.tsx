@@ -21,6 +21,13 @@ import type { RootStackParamList } from "../navigation/types";
 const DEFAULT_LAT = 37.7749;
 const DEFAULT_LON = -122.4194;
 
+function defaultRemindTime(): Date {
+  const d = new Date();
+  d.setMinutes(0, 0, 0);
+  d.setHours(d.getHours() + 1);
+  return d;
+}
+
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "AddPin">;
 };
@@ -40,6 +47,7 @@ export function AddPinScreen({ navigation }: Props) {
       ),
     });
   }, [navigation]);
+  const [reminderKind, setReminderKind] = useState<"pin" | "time">("pin");
   const [title, setTitle] = useState("");
   const [remindAt, setRemindAt] = useState<Date | null>(null);
   const [radius, setRadius] = useState("200");
@@ -107,13 +115,36 @@ export function AddPinScreen({ navigation }: Props) {
   };
 
   const save = async () => {
-    const r = Number(radius);
-    const latitude = Number(lat);
-    const longitude = Number(lon);
     if (!title.trim()) {
       Alert.alert("Title", "Add a short reminder title.");
       return;
     }
+    if (reminderKind === "time") {
+      if (!remindAt) {
+        Alert.alert("Time", "Choose when to be reminded.");
+        return;
+      }
+      setBusy(true);
+      try {
+        await addTask({
+          title: title.trim(),
+          latitude: null,
+          longitude: null,
+          radiusMeters: null,
+          remindAt: remindAt.toISOString(),
+        });
+        navigation.replace("Home");
+      } catch (e) {
+        Alert.alert("Error", e instanceof Error ? e.message : "Could not save");
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
+    const r = Number(radius);
+    const latitude = Number(lat);
+    const longitude = Number(lon);
     if (!Number.isFinite(r) || r < 10) {
       Alert.alert("Radius", "Radius must be at least 10 meters.");
       return;
@@ -147,12 +178,54 @@ export function AddPinScreen({ navigation }: Props) {
         contentContainerClassName="pb-8"
       >
         <Text className="mt-2 text-xl font-semibold text-slate-900">
-          New pin
+          New reminder
         </Text>
         <Text className="mt-1 text-sm text-slate-500">
-          Search by address or ZIP, drag the pin, or tap the map. We’ll nudge you
-          when you enter the radius.
+          {reminderKind === "pin"
+            ? "Place a map pin and radius — we’ll nudge when you enter the zone. Optionally restrict to a time window."
+            : "No location needed — we’ll nudge on a schedule (repeats while reminders are on)."}
         </Text>
+
+        <Text className="mt-6 text-xs font-medium uppercase text-slate-500">
+          Type
+        </Text>
+        <View className="mt-2 flex-row gap-2">
+          <Pressable
+            onPress={() => setReminderKind("pin")}
+            className={`flex-1 items-center rounded-xl border py-3 ${
+              reminderKind === "pin"
+                ? "border-sky-600 bg-sky-50"
+                : "border-slate-200 bg-white"
+            }`}
+          >
+            <Text
+              className={`font-semibold ${
+                reminderKind === "pin" ? "text-sky-800" : "text-slate-700"
+              }`}
+            >
+              Map pin
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              setReminderKind("time");
+              setRemindAt((prev) => prev ?? defaultRemindTime());
+            }}
+            className={`flex-1 items-center rounded-xl border py-3 ${
+              reminderKind === "time"
+                ? "border-sky-600 bg-sky-50"
+                : "border-slate-200 bg-white"
+            }`}
+          >
+            <Text
+              className={`font-semibold ${
+                reminderKind === "time" ? "text-sky-800" : "text-slate-700"
+              }`}
+            >
+              Time only
+            </Text>
+          </Pressable>
+        </View>
 
         <Text className="mt-6 text-xs font-medium uppercase text-slate-500">
           Reminder
@@ -166,85 +239,91 @@ export function AddPinScreen({ navigation }: Props) {
         />
 
         <Text className="mt-6 text-xs font-medium uppercase text-slate-500">
-          Remind after (optional)
+          {reminderKind === "pin"
+            ? "Remind after (optional)"
+            : "Remind at (required)"}
         </Text>
         <ReminderTimeField value={remindAt} onChange={setRemindAt} />
 
-        <Text className="mt-6 text-xs font-medium uppercase text-slate-500">
-          Radius (meters)
-        </Text>
-        <TextInput
-          value={radius}
-          onChangeText={setRadius}
-          keyboardType="number-pad"
-          className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-900"
-        />
+        {reminderKind === "pin" ? (
+          <>
+            <Text className="mt-6 text-xs font-medium uppercase text-slate-500">
+              Radius (meters)
+            </Text>
+            <TextInput
+              value={radius}
+              onChangeText={setRadius}
+              keyboardType="number-pad"
+              className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-900"
+            />
 
-        <Text className="mt-6 text-xs font-medium uppercase text-slate-500">
-          Address or ZIP
-        </Text>
-        <TextInput
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholder="e.g. 94102 or 1600 Amphitheatre Pkwy, Mountain View"
-          placeholderTextColor="#94a3b8"
-          autoCapitalize="words"
-          className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-900"
-        />
-        <View className="mt-3 flex-row gap-2">
-          <Pressable
-            onPress={() => void runSearch()}
-            disabled={searchBusy}
-            className="flex-1 items-center rounded-xl bg-sky-600 py-3 active:bg-sky-700 disabled:opacity-60"
-          >
-            {searchBusy ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text className="font-semibold text-white">Search on map</Text>
-            )}
-          </Pressable>
-          <Pressable
-            onPress={() => void useHere()}
-            className="flex-1 items-center rounded-xl bg-sky-100 py-3 active:bg-sky-200"
-          >
-            <Text className="font-semibold text-sky-800">Use my location</Text>
-          </Pressable>
-        </View>
+            <Text className="mt-6 text-xs font-medium uppercase text-slate-500">
+              Address or ZIP
+            </Text>
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="e.g. 94102 or 1600 Amphitheatre Pkwy, Mountain View"
+              placeholderTextColor="#94a3b8"
+              autoCapitalize="words"
+              className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-900"
+            />
+            <View className="mt-3 flex-row gap-2">
+              <Pressable
+                onPress={() => void runSearch()}
+                disabled={searchBusy}
+                className="flex-1 items-center rounded-xl bg-sky-600 py-3 active:bg-sky-700 disabled:opacity-60"
+              >
+                {searchBusy ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text className="font-semibold text-white">Search on map</Text>
+                )}
+              </Pressable>
+              <Pressable
+                onPress={() => void useHere()}
+                className="flex-1 items-center rounded-xl bg-sky-100 py-3 active:bg-sky-200"
+              >
+                <Text className="font-semibold text-sky-800">Use my location</Text>
+              </Pressable>
+            </View>
 
-        <Text className="mt-6 text-xs font-medium uppercase text-slate-500">
-          Map
-        </Text>
-        <View className="mt-2 overflow-hidden rounded-xl">
-          <AddPinMap
-            latitude={parsedLatLon.latitude}
-            longitude={parsedLatLon.longitude}
-            onCoordinateChange={onMapCoordinateChange}
-            recenterKey={recenterKey}
-          />
-        </View>
+            <Text className="mt-6 text-xs font-medium uppercase text-slate-500">
+              Map
+            </Text>
+            <View className="mt-2 overflow-hidden rounded-xl">
+              <AddPinMap
+                latitude={parsedLatLon.latitude}
+                longitude={parsedLatLon.longitude}
+                onCoordinateChange={onMapCoordinateChange}
+                recenterKey={recenterKey}
+              />
+            </View>
 
-        <Text className="mt-4 text-xs font-medium uppercase text-slate-500">
-          Latitude
-        </Text>
-        <TextInput
-          value={lat}
-          onChangeText={setLat}
-          keyboardType="decimal-pad"
-          placeholder="37.77"
-          placeholderTextColor="#94a3b8"
-          className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-900"
-        />
-        <Text className="mt-4 text-xs font-medium uppercase text-slate-500">
-          Longitude
-        </Text>
-        <TextInput
-          value={lon}
-          onChangeText={setLon}
-          keyboardType="decimal-pad"
-          placeholder="-122.42"
-          placeholderTextColor="#94a3b8"
-          className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-900"
-        />
+            <Text className="mt-4 text-xs font-medium uppercase text-slate-500">
+              Latitude
+            </Text>
+            <TextInput
+              value={lat}
+              onChangeText={setLat}
+              keyboardType="decimal-pad"
+              placeholder="37.77"
+              placeholderTextColor="#94a3b8"
+              className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-900"
+            />
+            <Text className="mt-4 text-xs font-medium uppercase text-slate-500">
+              Longitude
+            </Text>
+            <TextInput
+              value={lon}
+              onChangeText={setLon}
+              keyboardType="decimal-pad"
+              placeholder="-122.42"
+              placeholderTextColor="#94a3b8"
+              className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-900"
+            />
+          </>
+        ) : null}
 
         <Pressable
           onPress={() => void save()}
@@ -254,7 +333,7 @@ export function AddPinScreen({ navigation }: Props) {
           {busy ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text className="text-base font-semibold text-white">Save pin</Text>
+            <Text className="text-base font-semibold text-white">Save reminder</Text>
           )}
         </Pressable>
       </ScrollView>

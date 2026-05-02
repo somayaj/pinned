@@ -13,17 +13,23 @@ export type AppUser = {
 function rowToTask(row: {
   id: string;
   title: string;
-  latitude: string | number;
-  longitude: string | number;
-  radius_meters: number;
+  latitude: string | number | null;
+  longitude: string | number | null;
+  radius_meters: number | null;
   remind_at: Date | null;
   created_at: Date;
 }): Task {
   return {
     id: row.id,
     title: row.title,
-    latitude: Number(row.latitude),
-    longitude: Number(row.longitude),
+    latitude:
+      row.latitude === null || row.latitude === undefined
+        ? null
+        : Number(row.latitude),
+    longitude:
+      row.longitude === null || row.longitude === undefined
+        ? null
+        : Number(row.longitude),
     radiusMeters: row.radius_meters,
     remindAt: row.remind_at ? row.remind_at.toISOString() : null,
     createdAt: row.created_at.toISOString(),
@@ -76,9 +82,9 @@ export async function listTasks(userId: string): Promise<Task[]> {
   const result = await pool.query<{
     id: string;
     title: string;
-    latitude: string;
-    longitude: string;
-    radius_meters: number;
+    latitude: string | null;
+    longitude: string | null;
+    radius_meters: number | null;
     remind_at: Date | null;
     created_at: Date;
   }>(
@@ -98,9 +104,9 @@ export async function getTask(
   const result = await pool.query<{
     id: string;
     title: string;
-    latitude: string;
-    longitude: string;
-    radius_meters: number;
+    latitude: string | null;
+    longitude: string | null;
+    radius_meters: number | null;
     remind_at: Date | null;
     created_at: Date;
   }>(
@@ -116,20 +122,23 @@ export async function createTask(
   userId: string,
   input: {
     title: string;
-    latitude: number;
-    longitude: number;
-    radiusMeters: number;
+    latitude: number | null;
+    longitude: number | null;
+    radiusMeters: number | null;
     remindAt: Date | null;
   }
 ): Promise<Task> {
   const id = nanoid();
-  const radiusMeters = Math.max(10, Math.round(input.radiusMeters));
+  const radiusMeters =
+    input.radiusMeters == null
+      ? null
+      : Math.max(10, Math.round(input.radiusMeters));
   const result = await pool.query<{
     id: string;
     title: string;
-    latitude: string;
-    longitude: string;
-    radius_meters: number;
+    latitude: string | null;
+    longitude: string | null;
+    radius_meters: number | null;
     remind_at: Date | null;
     created_at: Date;
   }>(

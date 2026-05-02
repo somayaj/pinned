@@ -30,9 +30,9 @@ export async function createTask(
   accessToken: string,
   body: {
     title: string;
-    latitude: number;
-    longitude: number;
-    radiusMeters: number;
+    latitude: number | null;
+    longitude: number | null;
+    radiusMeters: number | null;
     remindAt: string | null;
   }
 ): Promise<Task> {

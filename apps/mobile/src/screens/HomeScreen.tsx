@@ -75,6 +75,7 @@ export function HomeScreen({ navigation }: Props) {
   }, [updateLocation, tasks.length]);
 
   const distFor = (t: Task) => {
+    if (t.latitude == null || t.longitude == null) return null;
     if (!loc) return null;
     return distanceMeters(loc.lat, loc.lon, t.latitude, t.longitude);
   };
@@ -292,14 +293,30 @@ export function HomeScreen({ navigation }: Props) {
                 {item.title}
               </Text>
               <Text className="mt-1 text-xs text-slate-500">
-                Radius {item.radiusMeters} m
-                {d != null ? ` · ${formatDistance(d)} away` : ""}
-                {item.remindAt != null && item.remindAt !== ""
-                  ? ` · After ${new Date(item.remindAt).toLocaleString(undefined, {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    })}`
-                  : ""}
+                {item.latitude != null &&
+                item.longitude != null &&
+                item.radiusMeters != null ? (
+                  <>
+                    Radius {item.radiusMeters} m
+                    {d != null ? ` · ${formatDistance(d)} away` : ""}
+                    {item.remindAt != null && item.remindAt !== ""
+                      ? ` · Not before ${new Date(item.remindAt).toLocaleString(undefined, {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        })}`
+                      : ""}
+                  </>
+                ) : (
+                  <>
+                    Time reminder (no map pin)
+                    {item.remindAt != null && item.remindAt !== ""
+                      ? ` · From ${new Date(item.remindAt).toLocaleString(undefined, {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        })}`
+                      : ""}
+                  </>
+                )}
               </Text>
               {reminderMutedTaskIds.includes(item.id) ? (
                 <View className="mt-2 flex-row flex-wrap items-center gap-2">
