@@ -6,4 +6,5 @@ export type RootStackParamList = {
   AddTimeReminder: undefined;
   Settings: undefined;
   Stocks: undefined;
+  News: undefined;
 };

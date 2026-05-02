@@ -1,18 +1,29 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect } from "react";
 import {
-  Animated,
   Platform,
   Pressable,
+  StyleSheet,
   Text,
   useWindowDimensions,
   View,
 } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, {
+  cancelAnimation,
+  Extrapolation,
+  interpolate,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 import { NotificationBellIcon } from "./NotificationBellIcon";
 import { PinItLogoIcon } from "./PinItLogoIcon";
 import { useTasks } from "../context/TasksContext";
 import { playPinnedAlertSound } from "../lib/alertSound";
 
-/** Matches HomeScreen FAB: `bottom-8` (32) + h-14 (56). */
+/** Matches HomeScreen FAB: `bottom-8` (32) + `h-14` (56). */
 const FAB_BOTTOM = 32;
 const FAB_SIZE = 56;
 const GAP = 12;
@@ -20,9 +31,20 @@ const BELL_SIZE = 56;
 /** Matches HomeScreen FAB `right-6` (24). */
 const EDGE_RIGHT = 24;
 
+/** Toast starts this far below its rest position (px). */
+const ENTRY_OFFSET = 88;
+const DISMISS_DRAG_PX = 52;
+const DISMISS_VELOCITY = 720;
+
+const BELL_ROW_BOTTOM = FAB_BOTTOM + FAB_SIZE + GAP;
+const TOAST_BOTTOM = BELL_ROW_BOTTOM + BELL_SIZE + GAP;
+
+/** Above Home FAB (`z-[100]`, elevation 12) and nav chrome. */
+const OVERLAY_Z = 100_000;
+const ANDROID_OVERLAY_ELEVATION = 56;
+
 /**
- * Web: bell chip bottom-right, above the + FAB. Task alerts slide up (Outlook-style) from the
- * same corner, above the chip.
+ * Web: bell chip bottom-right; task alerts slide up with spring + swipe-up to dismiss.
  */
 export function TaskAlertOverlay() {
   const { width: windowWidth } = useWindowDimensions();
@@ -32,45 +54,73 @@ export function TaskAlertOverlay() {
     dismissTaskAlertMuteReminders,
   } = useTasks();
 
-  const slideY = useRef(new Animated.Value(0)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-
-  /** Bottom offset of bell — matches HomeScreen FAB stack (`bottom-8` + h-14 + gap). */
-  const bellBottom = FAB_BOTTOM + FAB_SIZE + GAP;
-  /** Outlook toast sits above the bell chip. */
-  const toastBottom = bellBottom + BELL_SIZE + GAP;
-
-  const slideDistance = 96;
-
-  useEffect(() => {
-    if (taskAlert) playPinnedAlertSound();
-  }, [taskAlert?.task.id, taskAlert?.reason]);
+  const translateY = useSharedValue(0);
+  const dragStartY = useSharedValue(0);
 
   useEffect(() => {
     if (Platform.OS !== "web" || !taskAlert) {
-      if (Platform.OS === "web") {
-        slideY.setValue(slideDistance);
-        opacity.setValue(0);
-      }
       return;
     }
+    playPinnedAlertSound();
+    cancelAnimation(translateY);
+    translateY.value = ENTRY_OFFSET;
+    translateY.value = withSpring(0, {
+      damping: 19,
+      stiffness: 280,
+      mass: 0.88,
+    });
+  }, [taskAlert?.task.id, taskAlert?.reason]);
 
-    slideY.setValue(slideDistance);
-    opacity.setValue(0);
-    Animated.parallel([
-      Animated.spring(slideY, {
-        toValue: 0,
-        useNativeDriver: true,
-        speed: 18,
-        bounciness: 5,
-      }),
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 240,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [taskAlert?.task.id, taskAlert?.reason, slideDistance, slideY, opacity]);
+  const dismissAsOk = () => {
+    acknowledgeTaskAlert();
+  };
+
+  const pan = Gesture.Pan()
+    .activeOffsetY([-12, 12])
+    .failOffsetX([-28, 28])
+    .onStart(() => {
+      cancelAnimation(translateY);
+      dragStartY.value = translateY.value;
+    })
+    .onUpdate((e) => {
+      const next = dragStartY.value + e.translationY;
+      translateY.value = next > 0 ? next * 0.22 : next;
+    })
+    .onEnd((e) => {
+      const shouldDismiss =
+        translateY.value < -DISMISS_DRAG_PX ||
+        e.velocityY < -DISMISS_VELOCITY;
+      if (shouldDismiss) {
+        translateY.value = withTiming(
+          -260,
+          { duration: 220 },
+          (finished) => {
+            if (finished) {
+              runOnJS(dismissAsOk)();
+            }
+          }
+        );
+      } else {
+        translateY.value = withSpring(0, {
+          damping: 20,
+          stiffness: 320,
+          mass: 0.85,
+        });
+      }
+    });
+
+  const cardStyle = useAnimatedStyle(() => {
+    const o = interpolate(
+      translateY.value,
+      [-220, -80, 0, ENTRY_OFFSET],
+      [0, 0.92, 1, 1],
+      Extrapolation.CLAMP
+    );
+    return {
+      opacity: o,
+      transform: [{ translateY: translateY.value }],
+    };
+  });
 
   if (Platform.OS !== "web") {
     return null;
@@ -89,86 +139,13 @@ export function TaskAlertOverlay() {
               : "New reminder saved."
             : "";
 
-  const toastMaxW = Math.min(560, windowWidth - EDGE_RIGHT - 16);
+  const toastMaxW = Math.min(520, windowWidth - EDGE_RIGHT - 16);
 
   return (
-    <View className="absolute inset-0 z-[9999]" pointerEvents="box-none">
-      {/* Outlook-style task alert — slides up above the bell, anchored to the right */}
-      {taskAlert ? (
-        <View
-          pointerEvents="box-none"
-          style={{
-            position: "absolute",
-            right: EDGE_RIGHT,
-            bottom: toastBottom,
-            width: toastMaxW,
-            maxWidth: "100%",
-          }}
-        >
-          <Animated.View
-            style={{
-              width: "100%",
-              opacity,
-              transform: [{ translateY: slideY }],
-            }}
-          >
-            <View className="overflow-hidden rounded border border-slate-300 bg-white shadow-xl shadow-slate-400/25">
-              <View className="flex-row border-l-4 border-l-pin-600">
-                <View className="justify-center border-r border-slate-200 bg-slate-50 px-3 py-2.5">
-                  <PinItLogoIcon size={40} />
-                </View>
-                <View className="min-w-0 flex-1 flex-row flex-wrap items-center justify-between gap-3 py-2.5 pl-3 pr-2">
-                  <View className="min-w-0 flex-1 py-0.5">
-                    <Text
-                      className="text-[15px] font-semibold text-slate-900"
-                      numberOfLines={2}
-                    >
-                      {taskAlert.task.title}
-                    </Text>
-                    {subtitle ? (
-                      <Text
-                        className="mt-0.5 text-xs leading-snug text-slate-600"
-                        numberOfLines={2}
-                      >
-                        {subtitle}
-                      </Text>
-                    ) : null}
-                  </View>
-                  <View className="flex-row flex-wrap gap-2">
-                    <Pressable
-                      onPress={dismissTaskAlertMuteReminders}
-                      accessibilityRole="button"
-                      accessibilityLabel="Dismiss and mute reminders until you tap Resume on this pin"
-                      className="rounded border border-slate-300 bg-white px-3 py-1.5 active:bg-slate-100"
-                    >
-                      <Text className="text-xs font-semibold text-slate-800">
-                        Dismiss
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={acknowledgeTaskAlert}
-                      accessibilityRole="button"
-                      accessibilityLabel="OK, keep reminders on"
-                      className="rounded bg-pin-600 px-3 py-1.5 active:bg-pin-700"
-                    >
-                      <Text className="text-xs font-semibold text-white">OK</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              </View>
-            </View>
-          </Animated.View>
-        </View>
-      ) : null}
-
-      {/* Fixed bell — bottom-right, above + FAB (same horizontal line as FAB) */}
+    <View style={styles.overlayRoot} pointerEvents="box-none">
       <View
         pointerEvents="box-none"
-        style={{
-          position: "absolute",
-          right: EDGE_RIGHT,
-          bottom: bellBottom,
-        }}
+        style={[styles.dockSlot, { bottom: BELL_ROW_BOTTOM, zIndex: 1 }]}
       >
         <View
           accessible
@@ -180,6 +157,91 @@ export function TaskAlertOverlay() {
           <NotificationBellIcon size={30} color="#dc2626" />
         </View>
       </View>
+
+      {taskAlert ? (
+        <View
+          pointerEvents="box-none"
+          style={[
+            styles.dockSlot,
+            {
+              bottom: TOAST_BOTTOM,
+              width: toastMaxW,
+              maxWidth: "100%",
+              zIndex: 10,
+            },
+          ]}
+        >
+          <GestureDetector gesture={pan}>
+            <Animated.View style={[{ width: "100%" }, cardStyle]}>
+              <View className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-2xl shadow-slate-500/30">
+                <View className="items-center pt-2 pb-1">
+                  <View className="h-1 w-10 rounded-full bg-slate-300/90" />
+                  <Text className="mt-1 text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                    Swipe up to dismiss
+                  </Text>
+                </View>
+                <View className="flex-row border-l-[3px] border-l-pin-600">
+                  <View className="justify-center border-r border-slate-100 bg-slate-50/90 px-3 py-2.5">
+                    <PinItLogoIcon size={40} />
+                  </View>
+                  <View className="min-w-0 flex-1 flex-row flex-wrap items-center justify-between gap-3 py-2.5 pl-3 pr-2">
+                    <View className="min-w-0 flex-1 py-0.5">
+                      <Text
+                        className="text-[15px] font-semibold text-slate-900"
+                        numberOfLines={2}
+                      >
+                        {taskAlert.task.title}
+                      </Text>
+                      {subtitle ? (
+                        <Text
+                          className="mt-0.5 text-xs leading-snug text-slate-600"
+                          numberOfLines={2}
+                        >
+                          {subtitle}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <View className="flex-row flex-wrap gap-2">
+                      <Pressable
+                        onPress={dismissTaskAlertMuteReminders}
+                        accessibilityRole="button"
+                        accessibilityLabel="Dismiss and mute reminders until you tap Resume on this pin"
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 active:bg-slate-100"
+                      >
+                        <Text className="text-xs font-semibold text-slate-800">
+                          Dismiss
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={acknowledgeTaskAlert}
+                        accessibilityRole="button"
+                        accessibilityLabel="OK, keep reminders on"
+                        className="rounded-lg bg-pin-600 px-3 py-1.5 active:bg-pin-700"
+                      >
+                        <Text className="text-xs font-semibold text-white">OK</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            </Animated.View>
+          </GestureDetector>
+        </View>
+      ) : null}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  overlayRoot: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: OVERLAY_Z,
+    ...(Platform.OS === "android"
+      ? { elevation: ANDROID_OVERLAY_ELEVATION }
+      : {}),
+  },
+  dockSlot: {
+    position: "absolute",
+    right: EDGE_RIGHT,
+  },
+});

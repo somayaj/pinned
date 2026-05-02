@@ -300,6 +300,35 @@ export async function fetchStockQuotes(
   return res.json() as Promise<{ quotes: StockQuote[]; fetchedAt: string }>;
 }
 
+export type NewsHeadline = {
+  title: string;
+  link: string;
+  pubDate: string | null;
+};
+
+export type NewsHeadlinesResponse = {
+  cnn: NewsHeadline[];
+  cnbc: NewsHeadline[];
+  fetchedAt: string;
+  partial?: boolean;
+  warnings?: string[];
+};
+
+export async function fetchNewsHeadlines(
+  apiBase: string,
+  accessToken: string
+): Promise<NewsHeadlinesResponse> {
+  const res = await fetch(`${apiBase.replace(/\/$/, "")}/news/headlines`, {
+    headers: authHeaders(accessToken),
+  });
+  if (res.status === 401) throw new Error("session_expired");
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(t || `News headlines failed: ${res.status}`);
+  }
+  return res.json() as Promise<NewsHeadlinesResponse>;
+}
+
 export async function fetchUserProfile(
   apiBase: string,
   accessToken: string

@@ -16,6 +16,7 @@ import {
   postPushTest,
 } from "./routes/push.js";
 import { locationRouter } from "./routes/locations.js";
+import { newsRouter } from "./routes/news.js";
 import { stockRouter } from "./routes/stocks.js";
 import { taskRouter } from "./routes/tasks.js";
 import * as store from "./store.js";
@@ -59,6 +60,7 @@ app.use("/auth", authRouter);
 app.use("/locations", requireAuth, locationRouter);
 app.use("/tasks", requireAuth, taskRouter);
 app.use("/stocks", requireAuth, stockRouter);
+app.use("/news", requireAuth, newsRouter);
 
 const server = createServer(app);
 

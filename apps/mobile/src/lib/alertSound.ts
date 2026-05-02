@@ -7,6 +7,9 @@ let lastPlayAt = 0;
 const STOCKS_DEBOUNCE_MS = 400;
 let lastStocksPlayAt = 0;
 
+const NEWS_DEBOUNCE_MS = 500;
+let lastNewsPlayAt = 0;
+
 /**
  * Short attention chime for pin alerts (web: Web Audio; native: rely on
  * {@link expo-notifications} `sound` on scheduled notifications).
@@ -105,6 +108,62 @@ export function playStocksUpdateSound(): void {
         /* already closed */
       }
     }, 500);
+  } catch {
+    /* autoplay / AudioContext blocked */
+  }
+}
+
+/**
+ * News headline refresh (web only). Descending fifths, square wave — distinct from
+ * stocks and pin sounds.
+ */
+export function playNewsSound(): void {
+  if (Platform.OS !== "web" || typeof window === "undefined") return;
+
+  const now = Date.now();
+  if (now - lastNewsPlayAt < NEWS_DEBOUNCE_MS) return;
+  lastNewsPlayAt = now;
+
+  try {
+    const g = globalThis as unknown as {
+      AudioContext?: typeof AudioContext;
+      webkitAudioContext?: typeof AudioContext;
+    };
+    const Ctor = g.AudioContext ?? g.webkitAudioContext;
+    if (!Ctor) return;
+
+    const ctx = new Ctor();
+    if (ctx.state === "suspended") void ctx.resume();
+
+    const t0 = ctx.currentTime;
+    const notes = [
+      { hz: 523.25, at: 0, dur: 0.08, amp: 0.09 },
+      { hz: 392.0, at: 0.1, dur: 0.09, amp: 0.085 },
+      { hz: 293.66, at: 0.22, dur: 0.11, amp: 0.08 },
+    ];
+
+    for (const n of notes) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "square";
+      const start = t0 + n.at;
+      osc.frequency.setValueAtTime(n.hz, start);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(n.amp, start + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + n.dur);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + n.dur + 0.02);
+    }
+
+    window.setTimeout(() => {
+      try {
+        void ctx.close();
+      } catch {
+        /* already closed */
+      }
+    }, 450);
   } catch {
     /* autoplay / AudioContext blocked */
   }

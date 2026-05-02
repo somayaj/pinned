@@ -12,6 +12,7 @@ const patchProfileBody = z.object({
   smsAlerts: z.boolean().optional(),
   remindersEnabled: z.boolean().optional(),
   reminderMutedTaskIds: z.array(z.string().min(1).max(40)).max(100).optional(),
+  stocksUpdatesEnabled: z.boolean().optional(),
 });
 
 const googleBody = z.object({
@@ -57,6 +58,7 @@ authRouter.get("/profile", requireAuth, async (req, res) => {
         smsAlerts: user.smsAlerts,
         remindersEnabled: user.remindersEnabled,
         reminderMutedTaskIds: user.reminderMutedTaskIds,
+        stocksUpdatesEnabled: user.stocksUpdatesEnabled,
       },
     });
   } catch (err) {
@@ -72,13 +74,19 @@ authRouter.patch("/profile", requireAuth, async (req, res) => {
     res.status(400).json({ error: parsed.error.flatten() });
     return;
   }
-  const { phoneE164, smsAlerts, remindersEnabled, reminderMutedTaskIds } =
-    parsed.data;
+  const {
+    phoneE164,
+    smsAlerts,
+    remindersEnabled,
+    reminderMutedTaskIds,
+    stocksUpdatesEnabled,
+  } = parsed.data;
   if (
     smsAlerts === undefined &&
     phoneE164 === undefined &&
     remindersEnabled === undefined &&
-    reminderMutedTaskIds === undefined
+    reminderMutedTaskIds === undefined &&
+    stocksUpdatesEnabled === undefined
   ) {
     res.status(400).json({ error: "no_fields" });
     return;
@@ -98,6 +106,10 @@ authRouter.patch("/profile", requireAuth, async (req, res) => {
         reminderMutedTaskIds !== undefined
           ? reminderMutedTaskIds
           : current.reminderMutedTaskIds,
+      stocksUpdatesEnabled:
+        stocksUpdatesEnabled !== undefined
+          ? stocksUpdatesEnabled
+          : current.stocksUpdatesEnabled,
     });
     const user = await store.getUserProfile(userId);
     res.json({
@@ -110,6 +122,7 @@ authRouter.patch("/profile", requireAuth, async (req, res) => {
         smsAlerts: user.smsAlerts,
         remindersEnabled: user.remindersEnabled,
         reminderMutedTaskIds: user.reminderMutedTaskIds,
+        stocksUpdatesEnabled: user.stocksUpdatesEnabled,
       },
     });
   } catch (e) {

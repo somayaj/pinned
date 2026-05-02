@@ -235,6 +235,19 @@ export async function migrate(): Promise<void> {
     `);
   }
 
+  const stocksUpCol = await pool.query<{ exists: boolean }>(
+    `SELECT EXISTS (
+       SELECT 1 FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'stocks_updates_enabled'
+     ) AS exists`
+  );
+  if (!stocksUpCol.rows[0]?.exists) {
+    await pool.query(`
+      ALTER TABLE users
+      ADD COLUMN stocks_updates_enabled BOOLEAN NOT NULL DEFAULT true
+    `);
+  }
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS stock_watchlist (
       user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,

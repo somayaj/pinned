@@ -411,6 +411,10 @@ export type UserReminderPrefs = {
   reminderMutedTaskIds: string[];
 };
 
+export type UserStocksPrefs = {
+  stocksUpdatesEnabled: boolean;
+};
+
 export async function getUserSmsSettings(
   userId: string
 ): Promise<UserSmsSettings> {
@@ -429,7 +433,10 @@ export async function getUserSmsSettings(
   };
 }
 
-export type UserProfile = AppUser & UserSmsSettings & UserReminderPrefs;
+export type UserProfile = AppUser &
+  UserSmsSettings &
+  UserReminderPrefs &
+  UserStocksPrefs;
 
 export async function getUserProfile(userId: string): Promise<UserProfile> {
   const r = await pool.query<{
@@ -441,10 +448,12 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
     sms_alerts: boolean;
     reminders_enabled: boolean | null;
     reminder_muted_task_ids: string[] | null;
+    stocks_updates_enabled: boolean | null;
   }>(
     `SELECT id, email, name, picture, phone_e164, COALESCE(sms_alerts, false) AS sms_alerts,
             COALESCE(reminders_enabled, true) AS reminders_enabled,
-            COALESCE(reminder_muted_task_ids, ARRAY[]::text[]) AS reminder_muted_task_ids
+            COALESCE(reminder_muted_task_ids, ARRAY[]::text[]) AS reminder_muted_task_ids,
+            COALESCE(stocks_updates_enabled, true) AS stocks_updates_enabled
      FROM users WHERE id = $1`,
     [userId]
   );
@@ -462,6 +471,7 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
     smsAlerts: row.sms_alerts,
     remindersEnabled: row.reminders_enabled ?? true,
     reminderMutedTaskIds: Array.isArray(muted) ? muted : [],
+    stocksUpdatesEnabled: row.stocks_updates_enabled ?? true,
   };
 }
 
@@ -480,6 +490,7 @@ export async function updateUserProfile(
     smsAlerts: boolean;
     remindersEnabled: boolean;
     reminderMutedTaskIds: string[];
+    stocksUpdatesEnabled: boolean;
   }
 ): Promise<void> {
   const phone = normalizePhone(input.phoneE164);
@@ -492,9 +503,17 @@ export async function updateUserProfile(
        phone_e164 = $2,
        sms_alerts = $3,
        reminders_enabled = $4,
-       reminder_muted_task_ids = $5::text[]
+       reminder_muted_task_ids = $5::text[],
+       stocks_updates_enabled = $6
      WHERE id = $1`,
-    [userId, phone, smsOn, input.remindersEnabled, input.reminderMutedTaskIds]
+    [
+      userId,
+      phone,
+      smsOn,
+      input.remindersEnabled,
+      input.reminderMutedTaskIds,
+      input.stocksUpdatesEnabled,
+    ]
   );
 }
 

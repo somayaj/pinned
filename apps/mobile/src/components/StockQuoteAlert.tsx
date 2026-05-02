@@ -4,11 +4,22 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useStocks } from "../context/StocksContext";
+
+/** HomeScreen FAB: bottom-8 (32) + h-14 (56) + gap — sits above + button. */
+const ABOVE_FAB_OFFSET = 32 + 56 + 14;
+const EDGE_RIGHT = 16;
+const TOAST_MAX_W = 280;
+
+/** Above Home FAB (`z-[100]`, elevation) and task dock. */
+const OVERLAY_Z = 100_000;
+const ANDROID_OVERLAY_ELEVATION = 56;
 
 function fmtPrice(n: number | null, currency: string): string {
   if (n == null || Number.isNaN(n)) return "—";
@@ -31,13 +42,15 @@ function fmtPct(n: number | null): string {
 }
 
 /**
- * Sliding info panel for Yahoo-backed stock quotes (web + native).
+ * Non-blocking toast: slides up above the FAB, no modal or dimmed backdrop.
  */
 export function StockQuoteAlert() {
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
   const { lastAlert, dismissAlert } = useStocks();
-  const slideY = useRef(new Animated.Value(120)).current;
+  const slideY = useRef(new Animated.Value(48)).current;
   const opacity = useRef(new Animated.Value(0)).current;
+  const toastW = Math.min(TOAST_MAX_W, windowWidth - EDGE_RIGHT * 2);
 
   useEffect(() => {
     if (!lastAlert) {
@@ -51,14 +64,14 @@ export function StockQuoteAlert() {
     if (!lastAlert) {
       return;
     }
-    slideY.setValue(120);
+    slideY.setValue(48);
     opacity.setValue(0);
     Animated.parallel([
       Animated.spring(slideY, {
         toValue: 0,
         useNativeDriver: true,
-        speed: 16,
-        bounciness: 4,
+        speed: 18,
+        bounciness: 5,
       }),
       Animated.timing(opacity, {
         toValue: 1,
@@ -77,65 +90,81 @@ export function StockQuoteAlert() {
     minute: "2-digit",
   });
 
+  const bottomLift =
+    Math.max(insets.bottom, 8) + ABOVE_FAB_OFFSET + (Platform.OS === "web" ? 4 : 0);
+
   return (
-    <View
-      className="pointer-events-none absolute inset-0 z-[9990]"
-      pointerEvents="box-none"
-    >
+    <View style={styles.overlayRoot} pointerEvents="box-none">
       <Animated.View
         pointerEvents="box-none"
         style={{
           position: "absolute",
-          left: 0,
-          right: 0,
-          bottom: 0,
-          paddingBottom: Math.max(insets.bottom, 12) + (Platform.OS === "web" ? 8 : 0),
-          paddingHorizontal: 12,
+          right: EDGE_RIGHT,
+          bottom: bottomLift,
+          width: toastW,
+          maxWidth: "100%",
+          zIndex: 20,
           opacity,
           transform: [{ translateY: slideY }],
         }}
       >
         <View
           pointerEvents="auto"
-          className="max-h-80 overflow-hidden rounded-t-2xl border border-slate-200 bg-white shadow-2xl"
+          className="overflow-hidden rounded-xl border border-slate-300 bg-white shadow-xl shadow-slate-400/25"
         >
-          <View className="flex-row items-center justify-between border-b border-slate-100 bg-slate-50 px-3 py-2">
-            <View>
-              <Text className="text-xs font-semibold uppercase text-slate-500">
-                Market update
+          <View className="flex-row items-center justify-between gap-2 border-b border-slate-100 bg-slate-50 px-2.5 py-1.5">
+            <View className="min-w-0 flex-1">
+              <Text
+                className="text-[11px] font-semibold leading-tight text-slate-800"
+                numberOfLines={1}
+              >
+                Market · {timeLabel}
               </Text>
-              <Text className="text-xs text-slate-500">Yahoo Finance · {timeLabel}</Text>
+              <Text className="text-[9px] leading-tight text-slate-500" numberOfLines={1}>
+                Yahoo Finance
+              </Text>
             </View>
             <Pressable
               onPress={dismissAlert}
-              accessibilityLabel="Dismiss stock update"
-              className="rounded-lg bg-slate-200 px-3 py-1.5 active:bg-slate-300"
+              accessibilityLabel="Dismiss market update"
+              hitSlop={8}
+              className="h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white active:bg-slate-100"
             >
-              <Text className="text-xs font-semibold text-slate-800">Close</Text>
+              <Text className="text-base font-semibold leading-none text-slate-600">×</Text>
             </Pressable>
           </View>
-          <ScrollView className="px-2 py-2" nestedScrollEnabled>
+          <ScrollView
+            className="px-2 py-1"
+            nestedScrollEnabled
+            style={{ maxHeight: 160 }}
+          >
             {lastAlert.quotes.map((q) => (
               <View
                 key={q.symbol}
-                className="flex-row items-center justify-between border-b border-slate-100 py-2.5 pl-2 pr-2 last:border-b-0"
+                className="flex-row items-center justify-between border-b border-slate-100 py-1.5 last:border-b-0"
               >
                 <View className="min-w-0 flex-1 pr-2">
-                  <Text className="text-sm font-bold text-slate-900">
+                  <Text
+                    className="text-[11px] font-bold leading-tight text-slate-900"
+                    numberOfLines={1}
+                  >
                     {q.symbol}
                   </Text>
                   {q.shortName ? (
-                    <Text className="text-xs text-slate-500" numberOfLines={1}>
+                    <Text
+                      className="text-[9px] leading-tight text-slate-500"
+                      numberOfLines={1}
+                    >
                       {q.shortName}
                     </Text>
                   ) : null}
                 </View>
                 <View className="items-end">
-                  <Text className="text-sm font-semibold text-slate-900">
+                  <Text className="text-[11px] font-semibold leading-tight text-slate-900">
                     {fmtPrice(q.price, q.currency)}
                   </Text>
                   <Text
-                    className={`text-xs font-medium ${
+                    className={`text-[9px] font-medium leading-tight ${
                       (q.change ?? 0) >= 0 ? "text-emerald-700" : "text-red-600"
                     }`}
                   >
@@ -150,3 +179,13 @@ export function StockQuoteAlert() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  overlayRoot: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: OVERLAY_Z,
+    ...(Platform.OS === "android"
+      ? { elevation: ANDROID_OVERLAY_ELEVATION }
+      : {}),
+  },
+});
