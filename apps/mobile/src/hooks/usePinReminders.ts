@@ -82,6 +82,18 @@ export function usePinReminders(
   enabled: boolean,
   onWebInAppFallback?: (tasks: Task[]) => void
 ) {
+  const safeRemoveLocationSubscription = () => {
+    try {
+      // expo-location web currently can throw during remove() in some setups
+      // (LocationEventEmitter.removeSubscription missing). Never crash the app on cleanup.
+      (subRef.current as unknown as { remove?: () => void } | null)?.remove?.();
+    } catch {
+      /* ignore */
+    } finally {
+      subRef.current = null;
+    }
+  };
+
   const { reminderMutedTaskIds } = useTasks();
   const mutedByDismiss = useMemo(
     () => new Set(reminderMutedTaskIds),
@@ -98,8 +110,7 @@ export function usePinReminders(
       insideRef.current.clear();
       lastNudgeAtRef.current.clear();
       lastCoordsRef.current = null;
-      subRef.current?.remove();
-      subRef.current = null;
+      safeRemoveLocationSubscription();
       return;
     }
 
@@ -203,8 +214,7 @@ export function usePinReminders(
     return () => {
       cancelled = true;
       if (tickId != null) clearInterval(tickId);
-      subRef.current?.remove();
-      subRef.current = null;
+      safeRemoveLocationSubscription();
     };
   }, [tasks, apiBase, accessToken, enabled, onWebInAppFallback, mutedByDismiss]);
 }
