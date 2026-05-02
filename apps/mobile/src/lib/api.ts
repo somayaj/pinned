@@ -83,14 +83,32 @@ export async function exchangeGoogleIdToken(
   token: string;
   user: { id: string; email: string | null; name: string | null; picture: string | null };
 }> {
-  const res = await fetch(`${apiBase}/auth/google`, {
+  const base = apiBase.replace(/\/$/, "");
+  let authUrl: string;
+  try {
+    authUrl = new URL("/auth/google", `${base}/`).href;
+  } catch {
+    throw new Error(
+      "Invalid API base URL. Use Settings → API base URL with a full URL like https://pinned-production-b992.up.railway.app",
+    );
+  }
+
+  const res = await fetch(authUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ idToken }),
   });
   if (!res.ok) {
     const t = await res.text();
-    throw new Error(t || "Sign-in failed");
+    if (/Cannot POST\s+\/auth\/google/i.test(t)) {
+      throw new Error(
+        "Sign-in hit the wrong server (often the Expo UI port). Open Settings and set API base URL to your pinned-api host, e.g. https://pinned-production-b992.up.railway.app — not http://localhost:8081.",
+      );
+    }
+    if (t.includes("<!DOCTYPE") || t.includes("<html")) {
+      throw new Error(`Sign-in failed (${res.status}). Check API base URL in Settings points to pinned-api, not the Expo dev server.`);
+    }
+    throw new Error(t.length > 280 ? `Sign-in failed (${res.status})` : t || "Sign-in failed");
   }
   return res.json() as Promise<{
     token: string;
