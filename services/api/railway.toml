@@ -1,0 +1,14 @@
+# Railway → New service → GitHub repo → Settings:
+#   Root Directory: services/api
+# Variables: DATABASE_URL = (Neon connection string)
+#
+# https://docs.railway.app/guides/monorepo
+
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
