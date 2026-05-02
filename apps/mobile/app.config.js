@@ -1,4 +1,12 @@
 /** @type {import('expo/config').ExpoConfig} */
+// Default OAuth client IDs (Google Cloud). Override with EXPO_PUBLIC_* in .env if needed.
+const GOOGLE_WEB =
+  "559395124998-80nodpvoat8ifi2f1qm9qc2f2cdngd22.apps.googleusercontent.com";
+const GOOGLE_IOS =
+  "559395124998-j0k515p1mjrrhkljm18te9k7ui8htc40.apps.googleusercontent.com";
+const GOOGLE_ANDROID =
+  "559395124998-1s4vnrk1jcp3ii42o669udllcfa1iqt4.apps.googleusercontent.com";
+
 module.exports = {
   name: "Pinned",
   slug: "pinned",
@@ -42,9 +50,12 @@ module.exports = {
     apiUrl:
       process.env.EXPO_PUBLIC_API_URL ??
       "https://pinned-production-b992.up.railway.app",
-    googleWebClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? "",
-    googleIosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-    googleAndroidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+    googleWebClientId:
+      process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? GOOGLE_WEB,
+    googleIosClientId:
+      process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? GOOGLE_IOS,
+    googleAndroidClientId:
+      process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? GOOGLE_ANDROID,
   },
   plugins: [
     [
