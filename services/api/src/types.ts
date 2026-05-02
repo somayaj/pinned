@@ -4,6 +4,8 @@ export interface Task {
   latitude: number;
   longitude: number;
   radiusMeters: number;
+  /** ISO 8601 — reminder only after this instant (in zone). Null = any time. */
+  remindAt: string | null;
   createdAt: string;
 }
 

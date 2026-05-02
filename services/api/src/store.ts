@@ -16,6 +16,7 @@ function rowToTask(row: {
   latitude: string | number;
   longitude: string | number;
   radius_meters: number;
+  remind_at: Date | null;
   created_at: Date;
 }): Task {
   return {
@@ -24,6 +25,7 @@ function rowToTask(row: {
     latitude: Number(row.latitude),
     longitude: Number(row.longitude),
     radiusMeters: row.radius_meters,
+    remindAt: row.remind_at ? row.remind_at.toISOString() : null,
     createdAt: row.created_at.toISOString(),
   };
 }
@@ -77,9 +79,10 @@ export async function listTasks(userId: string): Promise<Task[]> {
     latitude: string;
     longitude: string;
     radius_meters: number;
+    remind_at: Date | null;
     created_at: Date;
   }>(
-    `SELECT id, title, latitude, longitude, radius_meters, created_at
+    `SELECT id, title, latitude, longitude, radius_meters, remind_at, created_at
      FROM tasks
      WHERE user_id = $1
      ORDER BY created_at DESC`,
@@ -98,9 +101,10 @@ export async function getTask(
     latitude: string;
     longitude: string;
     radius_meters: number;
+    remind_at: Date | null;
     created_at: Date;
   }>(
-    `SELECT id, title, latitude, longitude, radius_meters, created_at
+    `SELECT id, title, latitude, longitude, radius_meters, remind_at, created_at
      FROM tasks WHERE id = $1 AND user_id = $2`,
     [id, userId]
   );
@@ -115,6 +119,7 @@ export async function createTask(
     latitude: number;
     longitude: number;
     radiusMeters: number;
+    remindAt: Date | null;
   }
 ): Promise<Task> {
   const id = nanoid();
@@ -125,12 +130,21 @@ export async function createTask(
     latitude: string;
     longitude: string;
     radius_meters: number;
+    remind_at: Date | null;
     created_at: Date;
   }>(
-    `INSERT INTO tasks (id, user_id, title, latitude, longitude, radius_meters)
-     VALUES ($1, $2, $3, $4, $5, $6)
-     RETURNING id, title, latitude, longitude, radius_meters, created_at`,
-    [id, userId, input.title.trim(), input.latitude, input.longitude, radiusMeters]
+    `INSERT INTO tasks (id, user_id, title, latitude, longitude, radius_meters, remind_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     RETURNING id, title, latitude, longitude, radius_meters, remind_at, created_at`,
+    [
+      id,
+      userId,
+      input.title.trim(),
+      input.latitude,
+      input.longitude,
+      radiusMeters,
+      input.remindAt,
+    ]
   );
   return rowToTask(result.rows[0]);
 }

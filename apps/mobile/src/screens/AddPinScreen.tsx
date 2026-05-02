@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AddPinMap from "../components/AddPinMap";
+import { ReminderTimeField } from "../components/ReminderTimeField";
 import { geocodeSearch } from "../lib/geocode";
 import { useTasks } from "../context/TasksContext";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -40,6 +41,7 @@ export function AddPinScreen({ navigation }: Props) {
     });
   }, [navigation]);
   const [title, setTitle] = useState("");
+  const [remindAt, setRemindAt] = useState<Date | null>(null);
   const [radius, setRadius] = useState("200");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchBusy, setSearchBusy] = useState(false);
@@ -127,6 +129,7 @@ export function AddPinScreen({ navigation }: Props) {
         latitude,
         longitude,
         radiusMeters: r,
+        remindAt: remindAt ? remindAt.toISOString() : null,
       });
       navigation.replace("Home");
     } catch (e) {
@@ -162,7 +165,12 @@ export function AddPinScreen({ navigation }: Props) {
           className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-base text-slate-900"
         />
 
-        <Text className="mt-4 text-xs font-medium uppercase text-slate-500">
+        <Text className="mt-6 text-xs font-medium uppercase text-slate-500">
+          Remind after (optional)
+        </Text>
+        <ReminderTimeField value={remindAt} onChange={setRemindAt} />
+
+        <Text className="mt-6 text-xs font-medium uppercase text-slate-500">
           Radius (meters)
         </Text>
         <TextInput

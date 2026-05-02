@@ -7,6 +7,7 @@ import { verifySessionToken } from "./auth/jwt.js";
 import { migrate } from "./db/migrate.js";
 import { requireAuth } from "./middleware/requireAuth.js";
 import { authRouter } from "./routes/auth.js";
+import { geocodeHandler } from "./routes/geocode.js";
 import { taskRouter } from "./routes/tasks.js";
 import * as store from "./store.js";
 import type { WsOutboundMessage } from "./types.js";
@@ -37,6 +38,8 @@ app.get("/health", async (_req, res) => {
     });
   }
 });
+
+app.get("/geocode", geocodeHandler);
 
 app.use("/auth", authRouter);
 app.use("/tasks", requireAuth, taskRouter);

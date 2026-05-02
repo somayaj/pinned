@@ -98,7 +98,12 @@ export default function AddPinMap({
 
   useEffect(() => {
     if (!mapRef.current || !readyRef.current) return;
-    mapRef.current.setView([latitude, longitude], 14, { animate: true });
+    const map = mapRef.current;
+    map.setView([latitude, longitude], 14, { animate: true });
+    // ScrollView layout: tiles sometimes stay gray until size is recomputed after pan/zoom.
+    requestAnimationFrame(() => {
+      map.invalidateSize();
+    });
   }, [recenterKey, latitude, longitude]);
 
   return (

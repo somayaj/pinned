@@ -47,4 +47,17 @@ export async function migrate(): Promise<void> {
   await pool.query(`
     CREATE INDEX IF NOT EXISTS tasks_user_created_idx ON tasks (user_id, created_at DESC);
   `);
+
+  const remindCol = await pool.query<{ exists: boolean }>(
+    `SELECT EXISTS (
+       SELECT 1 FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'tasks' AND column_name = 'remind_at'
+     ) AS exists`
+  );
+  if (!remindCol.rows[0]?.exists) {
+    await pool.query(`
+      ALTER TABLE tasks
+      ADD COLUMN remind_at TIMESTAMPTZ
+    `);
+  }
 }

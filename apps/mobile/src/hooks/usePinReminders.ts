@@ -6,6 +6,46 @@ import * as api from "../lib/api";
 import { distanceMeters } from "../lib/geo";
 import type { Task } from "../types/task";
 
+function canUseBrowserNotifications(): boolean {
+  return (
+    Platform.OS === "web" &&
+    typeof window !== "undefined" &&
+    "Notification" in window
+  );
+}
+
+/**
+ * Web: `expo-notifications` does not show system banners reliably; use the Web Notifications API.
+ * Native: keep using expo-notifications.
+ */
+async function showReminderNotification(task: Task): Promise<void> {
+  const body = `You're at: ${task.title}`;
+  if (canUseBrowserNotifications()) {
+    try {
+      if (Notification.permission === "default") {
+        await Notification.requestPermission();
+      }
+      if (Notification.permission === "granted") {
+        new Notification("Pinned", { body, tag: task.id });
+        return;
+      }
+    } catch {
+      /* fall through to expo */
+    }
+  }
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: "Pinned",
+      body,
+      data: { taskId: task.id },
+      ...(Platform.OS === "android"
+        ? { android: { channelId: "reminders" } }
+        : {}),
+    },
+    trigger: null,
+  });
+}
+
 /**
  * When you enter a task's radius: local notification + POST /tasks/:id/nudge (syncs WebSocket).
  */
@@ -16,11 +56,14 @@ export function usePinReminders(
   enabled: boolean
 ) {
   const insideRef = useRef<Map<string, boolean>>(new Map());
+  /** One notification per zone visit after time gate (if any). */
+  const notifiedRef = useRef<Map<string, boolean>>(new Map());
   const subRef = useRef<Location.LocationSubscription | null>(null);
 
   useEffect(() => {
     if (!enabled || !accessToken) {
       insideRef.current.clear();
+      notifiedRef.current.clear();
       subRef.current?.remove();
       subRef.current = null;
       return;
@@ -44,6 +87,7 @@ export function usePinReminders(
         },
         async (loc) => {
           const { latitude, longitude } = loc.coords;
+          const now = Date.now();
           for (const task of tasks) {
             const d = distanceMeters(
               latitude,
@@ -52,32 +96,28 @@ export function usePinReminders(
               task.longitude
             );
             const inside = d <= task.radiusMeters;
-            const wasInside = insideRef.current.get(task.id) ?? false;
 
-            if (inside) {
-              if (!wasInside) {
-                insideRef.current.set(task.id, true);
-                try {
-                  await Notifications.scheduleNotificationAsync({
-                    content: {
-                      title: "Pinned",
-                      body: `You're at: ${task.title}`,
-                      data: { taskId: task.id },
-                      ...(Platform.OS === "android"
-                        ? { android: { channelId: "reminders" } }
-                        : {}),
-                    },
-                    trigger: null,
-                  });
-                  await api.nudgeTask(apiBase, accessToken, task.id);
-                } catch {
-                  /* ignore */
-                }
-              } else {
-                insideRef.current.set(task.id, true);
-              }
-            } else {
+            if (!inside) {
               insideRef.current.set(task.id, false);
+              notifiedRef.current.delete(task.id);
+              continue;
+            }
+
+            insideRef.current.set(task.id, true);
+
+            const timeOk =
+              task.remindAt == null ||
+              task.remindAt === "" ||
+              now >= new Date(task.remindAt).getTime();
+            if (!timeOk) continue;
+            if (notifiedRef.current.get(task.id)) continue;
+
+            notifiedRef.current.set(task.id, true);
+            try {
+              await showReminderNotification(task);
+              await api.nudgeTask(apiBase, accessToken, task.id);
+            } catch {
+              /* ignore */
             }
           }
         }

@@ -33,6 +33,7 @@ export async function createTask(
     latitude: number;
     longitude: number;
     radiusMeters: number;
+    remindAt: string | null;
   }
 ): Promise<Task> {
   const res = await fetch(`${apiBase}/tasks`, {

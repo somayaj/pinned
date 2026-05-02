@@ -10,6 +10,8 @@ const createBody = z.object({
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
   radiusMeters: z.number().min(10).max(50_000),
+  /** ISO 8601 — only remind after this time (still must be in radius). Omit or null = any time. */
+  remindAt: z.union([z.string().datetime(), z.null()]).optional(),
 });
 
 taskRouter.get("/", async (req, res) => {
@@ -31,7 +33,14 @@ taskRouter.post("/", async (req, res) => {
     return;
   }
   try {
-    const task = await store.createTask(userId, parsed.data);
+    const { remindAt: rawRemind, ...rest } = parsed.data;
+    const remindAt =
+      rawRemind === undefined
+        ? null
+        : rawRemind === null
+          ? null
+          : new Date(rawRemind);
+    const task = await store.createTask(userId, { ...rest, remindAt });
     const tasks = await store.listTasks(userId);
     broadcastToUser(userId, { type: "tasks_updated", tasks });
     broadcastToUser(userId, {

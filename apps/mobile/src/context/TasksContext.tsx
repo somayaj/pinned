@@ -44,6 +44,7 @@ type TasksContextValue = {
     latitude: number;
     longitude: number;
     radiusMeters: number;
+    remindAt: string | null;
   }) => Promise<void>;
   removeTask: (id: string) => Promise<void>;
 };
@@ -205,6 +206,7 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       latitude: number;
       longitude: number;
       radiusMeters: number;
+      remindAt: string | null;
     }) => {
       if (!accessToken) return;
       const task = await api.createTask(apiBase, accessToken, input);

@@ -124,6 +124,12 @@ export function HomeScreen({ navigation }: Props) {
               <Text className="mt-1 text-xs text-slate-500">
                 Radius {item.radiusMeters} m
                 {d != null ? ` · ${formatDistance(d)} away` : ""}
+                {item.remindAt != null && item.remindAt !== ""
+                  ? ` · After ${new Date(item.remindAt).toLocaleString(undefined, {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    })}`
+                  : ""}
               </Text>
               <Pressable
                 onPress={() => void removeTask(item.id)}

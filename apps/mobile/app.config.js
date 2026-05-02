@@ -58,6 +58,7 @@ module.exports = {
       process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? GOOGLE_ANDROID,
   },
   plugins: [
+    "@react-native-community/datetimepicker",
     [
       "expo-location",
       {
