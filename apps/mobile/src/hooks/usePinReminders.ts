@@ -6,6 +6,9 @@ import * as api from "../lib/api";
 import { distanceMeters } from "../lib/geo";
 import type { Task } from "../types/task";
 
+/** While inside a pin, repeat nudge + notification at this interval. */
+const NUDGE_INTERVAL_MS = 60_000;
+
 function canUseBrowserNotifications(): boolean {
   return (
     Platform.OS === "web" &&
@@ -33,9 +36,10 @@ async function showReminderNotification(
         const origin =
           typeof window !== "undefined" ? window.location.origin : "";
         const icon = `${origin}/pinned-nudge-icon.svg`;
+        const tag = `${task.id}-${Math.floor(Date.now() / NUDGE_INTERVAL_MS)}`;
         new Notification("Pinned", {
           body,
-          tag: task.id,
+          tag,
           icon,
           badge: icon,
         });
@@ -61,7 +65,8 @@ async function showReminderNotification(
 }
 
 /**
- * When you enter a task's radius: local notification + POST /tasks/:id/nudge (syncs WebSocket).
+ * While inside a task's radius (and past remindAt if set): notification + POST nudge
+ * every {@link NUDGE_INTERVAL_MS} (WebSocket task_alert for web overlay).
  */
 export function usePinReminders(
   tasks: Task[],
@@ -71,14 +76,14 @@ export function usePinReminders(
   onWebInAppFallback?: (task: Task) => void
 ) {
   const insideRef = useRef<Map<string, boolean>>(new Map());
-  /** One notification per zone visit after time gate (if any). */
-  const notifiedRef = useRef<Map<string, boolean>>(new Map());
+  /** Last epoch ms we nudged for this task while still inside the zone. */
+  const lastNudgeAtRef = useRef<Map<string, number>>(new Map());
   const subRef = useRef<Location.LocationSubscription | null>(null);
 
   useEffect(() => {
     if (!enabled || !accessToken) {
       insideRef.current.clear();
-      notifiedRef.current.clear();
+      lastNudgeAtRef.current.clear();
       subRef.current?.remove();
       subRef.current = null;
       return;
@@ -116,7 +121,7 @@ export function usePinReminders(
 
             if (!inside) {
               insideRef.current.set(task.id, false);
-              notifiedRef.current.delete(task.id);
+              lastNudgeAtRef.current.delete(task.id);
               continue;
             }
 
@@ -127,9 +132,16 @@ export function usePinReminders(
               task.remindAt === "" ||
               now >= new Date(task.remindAt).getTime();
             if (!timeOk) continue;
-            if (notifiedRef.current.get(task.id)) continue;
 
-            notifiedRef.current.set(task.id, true);
+            const lastNudge = lastNudgeAtRef.current.get(task.id);
+            if (
+              lastNudge != null &&
+              now - lastNudge < NUDGE_INTERVAL_MS
+            ) {
+              continue;
+            }
+            lastNudgeAtRef.current.set(task.id, now);
+
             try {
               await showReminderNotification(task, onWebInAppFallback);
               await api.nudgeTask(apiBase, accessToken, task.id);
