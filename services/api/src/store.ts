@@ -477,10 +477,27 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
 
 const e164 = /^\+[1-9]\d{7,14}$/;
 
+/**
+ * Normalize to E.164 for Twilio. Accepts strict +… or common US/international
+ * entry (spaces, dashes, parens stripped; 10-digit US → +1…).
+ */
 function normalizePhone(raw: string | null): string | null {
   if (raw == null || raw.trim() === "") return null;
-  const t = raw.trim();
-  return e164.test(t) ? t : null;
+  let s = raw.trim().replace(/[\s().-]/g, "");
+  if (s.startsWith("00")) {
+    s = `+${s.slice(2)}`;
+  }
+  if (!s.startsWith("+")) {
+    const digits = s.replace(/\D/g, "");
+    if (digits.length === 10) {
+      s = `+1${digits}`;
+    } else if (digits.length === 11 && digits.startsWith("1")) {
+      s = `+${digits}`;
+    } else {
+      return null;
+    }
+  }
+  return e164.test(s) ? s : null;
 }
 
 export async function updateUserProfile(

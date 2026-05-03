@@ -1,0 +1,24 @@
+# Railway → New Project (or existing) → New Service → GitHub repo
+# Service settings:
+#   Root Directory: apps/mobile
+#   (Railway detects Dockerfile in that folder.)
+#
+# Web static output: `npm run export:web` → ./dist/ (index.html, _expo/, assets/, …)
+#
+# Variables (optional overrides):
+#   EXPO_PUBLIC_API_URL — set at *build* time to your API origin, e.g. https://your-api.up.railway.app
+#   Same value as a Docker build ARG if you use "Docker Build Args" in Railway UI.
+#
+# After deploy, add the public web URL to Google Cloud Console:
+#   Authorized JavaScript origins + Authorized redirect URIs for the Web client.
+#
+# https://docs.railway.app/guides/monorepo
+
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"

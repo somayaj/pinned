@@ -52,17 +52,23 @@ export function SettingsScreen({ navigation }: Props) {
         return;
       }
       const base = await getApiBaseUrl();
-      await patchUserProfile(base, accessToken, {
+      const updated = await patchUserProfile(base, accessToken, {
         phoneE164: phone.trim() || null,
         smsAlerts,
       });
+      if (smsAlerts && !updated.smsAlerts) {
+        Alert.alert(
+          "SMS alerts",
+          "Turn on SMS only after a valid number is saved. Use international format with country code (e.g. +14155552671). Spaces and dashes in the number are fine."
+        );
+      }
       navigation.goBack();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Could not save";
-      if (/invalid_phone|400/.test(msg)) {
+      if (/invalid_phone_e164|invalid_phone|400/.test(msg)) {
         Alert.alert(
           "Phone number",
-          "Use international format with country code, e.g. +14155552671"
+          "Use a valid mobile number in international format with country code (e.g. +14155552671). You can include spaces or dashes."
         );
         return;
       }

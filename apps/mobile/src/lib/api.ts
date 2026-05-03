@@ -394,6 +394,16 @@ export async function patchUserProfile(
   if (res.status === 401) throw new Error("session_expired");
   if (!res.ok) {
     const t = await res.text();
+    try {
+      const j = JSON.parse(t) as { error?: string };
+      if (j.error === "invalid_phone_e164") {
+        throw new Error("invalid_phone_e164");
+      }
+    } catch (e) {
+      if (e instanceof Error && e.message === "invalid_phone_e164") {
+        throw e;
+      }
+    }
     throw new Error(t || `Profile update failed: ${res.status}`);
   }
   const data = (await res.json()) as { user: UserProfile };
