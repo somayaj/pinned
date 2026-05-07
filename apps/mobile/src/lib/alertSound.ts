@@ -10,6 +10,9 @@ let lastStocksPlayAt = 0;
 const NEWS_DEBOUNCE_MS = 500;
 let lastNewsPlayAt = 0;
 
+const JOBS_DEBOUNCE_MS = 450;
+let lastJobsPlayAt = 0;
+
 /**
  * Short attention chime for pin alerts (web: Web Audio; native: rely on
  * {@link expo-notifications} `sound` on scheduled notifications).
@@ -164,6 +167,60 @@ export function playNewsSound(): void {
         /* already closed */
       }
     }, 450);
+  } catch {
+    /* autoplay / AudioContext blocked */
+  }
+}
+
+/**
+ * BuiltIn jobs digest changed (web only). Soft “double tap” sine — distinct from news + stocks.
+ */
+export function playJobsSound(): void {
+  if (Platform.OS !== "web" || typeof window === "undefined") return;
+
+  const now = Date.now();
+  if (now - lastJobsPlayAt < JOBS_DEBOUNCE_MS) return;
+  lastJobsPlayAt = now;
+
+  try {
+    const g = globalThis as unknown as {
+      AudioContext?: typeof AudioContext;
+      webkitAudioContext?: typeof AudioContext;
+    };
+    const Ctor = g.AudioContext ?? g.webkitAudioContext;
+    if (!Ctor) return;
+
+    const ctx = new Ctor();
+    if (ctx.state === "suspended") void ctx.resume();
+
+    const t0 = ctx.currentTime;
+    const notes = [
+      { hz: 659.25, at: 0.0, dur: 0.07, amp: 0.075 }, // E5
+      { hz: 659.25, at: 0.12, dur: 0.08, amp: 0.07 }, // E5
+    ];
+
+    for (const n of notes) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      const start = t0 + n.at;
+      osc.frequency.setValueAtTime(n.hz, start);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(n.amp, start + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + n.dur);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + n.dur + 0.02);
+    }
+
+    window.setTimeout(() => {
+      try {
+        void ctx.close();
+      } catch {
+        /* already closed */
+      }
+    }, 420);
   } catch {
     /* autoplay / AudioContext blocked */
   }

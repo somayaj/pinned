@@ -17,6 +17,7 @@ import {
   type BuiltinJobSettingsResponse,
   type BuiltinJobsResponse,
 } from "../lib/api";
+import { playJobsSound } from "../lib/alertSound";
 
 type BuiltinJobsAlertPayload = {
   items: BuiltinJobResult[];
@@ -106,6 +107,7 @@ export function BuiltinJobsProvider({ children }: { children: React.ReactNode })
         lastDigestRef.current = d;
         if (!digestChanged) return;
 
+        playJobsSound();
         setLastAlert({ items: data.items, fetchedAt: data.fetchedAt });
       } catch {
         /* scrape / network errors are non-fatal */
