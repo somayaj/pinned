@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import { TasksProvider } from "./src/context/TasksContext";
 import { StocksProvider } from "./src/context/StocksContext";
 import { NewsProvider } from "./src/context/NewsContext";
+import { BuiltinJobsProvider } from "./src/context/BuiltinJobsContext";
 import { TaskAlertOverlay } from "./src/components/TaskAlertOverlay";
 import { BottomToastStack } from "./src/components/BottomToastStack";
 import { AppNavigator } from "./src/navigation/AppNavigator";
@@ -22,9 +23,11 @@ function AuthenticatedApp() {
     <TasksProvider>
       <StocksProvider>
         <NewsProvider>
-          <AppNavigator />
-          <TaskAlertOverlay />
-          <BottomToastStack />
+          <BuiltinJobsProvider>
+            <AppNavigator />
+            <TaskAlertOverlay />
+            <BottomToastStack />
+          </BuiltinJobsProvider>
         </NewsProvider>
       </StocksProvider>
     </TasksProvider>

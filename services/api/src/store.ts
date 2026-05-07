@@ -603,6 +603,98 @@ export async function setNewsSettings(
   );
 }
 
+export type BuiltinJobSettingsRow = {
+  pollIntervalMinutes: number;
+  keywords: string;
+  locations: string[];
+  remoteOnly: boolean;
+  postedWithinDays: number;
+  seniority: string[];
+  jobType: string[];
+  companyAllowlist: string[];
+  companyDenylist: string[];
+};
+
+export async function getBuiltinJobSettings(
+  userId: string
+): Promise<BuiltinJobSettingsRow | null> {
+  const r = await pool.query<{
+    poll_interval_minutes: number;
+    keywords: string;
+    locations: string[] | null;
+    remote_only: boolean;
+    posted_within_days: number;
+    seniority: string[] | null;
+    job_type: string[] | null;
+    company_allowlist: string[] | null;
+    company_denylist: string[] | null;
+  }>(
+    `SELECT poll_interval_minutes, keywords, locations, remote_only, posted_within_days,
+            seniority, job_type, company_allowlist, company_denylist
+     FROM builtin_job_settings
+     WHERE user_id = $1`,
+    [userId]
+  );
+  const row = r.rows[0];
+  if (!row) return null;
+  return {
+    pollIntervalMinutes: row.poll_interval_minutes,
+    keywords: row.keywords ?? "",
+    locations: Array.isArray(row.locations) ? row.locations : [],
+    remoteOnly: Boolean(row.remote_only),
+    postedWithinDays: row.posted_within_days,
+    seniority: Array.isArray(row.seniority) ? row.seniority : [],
+    jobType: Array.isArray(row.job_type) ? row.job_type : [],
+    companyAllowlist: Array.isArray(row.company_allowlist) ? row.company_allowlist : [],
+    companyDenylist: Array.isArray(row.company_denylist) ? row.company_denylist : [],
+  };
+}
+
+export async function setBuiltinJobSettings(
+  userId: string,
+  input: BuiltinJobSettingsRow
+): Promise<void> {
+  await pool.query(
+    `INSERT INTO builtin_job_settings (
+       user_id,
+       poll_interval_minutes,
+       keywords,
+       locations,
+       remote_only,
+       posted_within_days,
+       seniority,
+       job_type,
+       company_allowlist,
+       company_denylist,
+       updated_at
+     )
+     VALUES ($1, $2, $3, $4::text[], $5, $6, $7::text[], $8::text[], $9::text[], $10::text[], now())
+     ON CONFLICT (user_id) DO UPDATE SET
+       poll_interval_minutes = EXCLUDED.poll_interval_minutes,
+       keywords = EXCLUDED.keywords,
+       locations = EXCLUDED.locations,
+       remote_only = EXCLUDED.remote_only,
+       posted_within_days = EXCLUDED.posted_within_days,
+       seniority = EXCLUDED.seniority,
+       job_type = EXCLUDED.job_type,
+       company_allowlist = EXCLUDED.company_allowlist,
+       company_denylist = EXCLUDED.company_denylist,
+       updated_at = now()`,
+    [
+      userId,
+      input.pollIntervalMinutes,
+      input.keywords,
+      input.locations,
+      input.remoteOnly,
+      input.postedWithinDays,
+      input.seniority,
+      input.jobType,
+      input.companyAllowlist,
+      input.companyDenylist,
+    ]
+  );
+}
+
 export async function pingDb(): Promise<boolean> {
   await pool.query("SELECT 1");
   return true;

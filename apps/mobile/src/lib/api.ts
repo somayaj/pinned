@@ -363,6 +363,77 @@ export async function putNewsSettings(
   return res.json() as Promise<NewsSettingsResponse>;
 }
 
+export type BuiltinJobSettingsResponse = {
+  pollIntervalMinutes: number;
+  keywords: string;
+  locations: string[];
+  remoteOnly: boolean;
+  postedWithinDays: number;
+  seniority: string[];
+  jobType: string[];
+  companyAllowlist: string[];
+  companyDenylist: string[];
+};
+
+export type BuiltinJobResult = {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  url: string;
+  postedAt?: string;
+};
+
+export type BuiltinJobsResponse = {
+  fetchedAt: string;
+  items: BuiltinJobResult[];
+};
+
+export async function fetchBuiltinJobSettings(
+  apiBase: string,
+  accessToken: string
+): Promise<BuiltinJobSettingsResponse> {
+  const res = await fetch(`${apiBase.replace(/\/$/, "")}/jobs/builtin/settings`, {
+    headers: authHeaders(accessToken),
+  });
+  if (res.status === 401) throw new Error("session_expired");
+  if (!res.ok) throw new Error(`BuiltIn job settings failed: ${res.status}`);
+  return res.json() as Promise<BuiltinJobSettingsResponse>;
+}
+
+export async function putBuiltinJobSettings(
+  apiBase: string,
+  accessToken: string,
+  body: BuiltinJobSettingsResponse
+): Promise<BuiltinJobSettingsResponse> {
+  const res = await fetch(`${apiBase.replace(/\/$/, "")}/jobs/builtin/settings`, {
+    method: "PUT",
+    headers: authHeaders(accessToken, true),
+    body: JSON.stringify(body),
+  });
+  if (res.status === 401) throw new Error("session_expired");
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(t || `BuiltIn job settings save failed: ${res.status}`);
+  }
+  return res.json() as Promise<BuiltinJobSettingsResponse>;
+}
+
+export async function fetchBuiltinJobs(
+  apiBase: string,
+  accessToken: string
+): Promise<BuiltinJobsResponse> {
+  const res = await fetch(`${apiBase.replace(/\/$/, "")}/jobs/builtin/search`, {
+    headers: authHeaders(accessToken),
+  });
+  if (res.status === 401) throw new Error("session_expired");
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(t || `BuiltIn jobs failed: ${res.status}`);
+  }
+  return res.json() as Promise<BuiltinJobsResponse>;
+}
+
 export async function fetchUserProfile(
   apiBase: string,
   accessToken: string

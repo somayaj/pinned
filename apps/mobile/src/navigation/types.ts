@@ -7,4 +7,5 @@ export type RootStackParamList = {
   Settings: undefined;
   Stocks: undefined;
   News: undefined;
+  BuiltinJobs: undefined;
 };

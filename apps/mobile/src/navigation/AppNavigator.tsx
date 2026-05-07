@@ -10,6 +10,7 @@ import { LocationDetailScreen } from "../screens/LocationDetailScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
 import { StocksScreen } from "../screens/StocksScreen";
 import { NewsScreen } from "../screens/NewsScreen";
+import { BuiltinJobsScreen } from "../screens/BuiltinJobsScreen";
 import type { RootStackParamList } from "./types";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -74,6 +75,11 @@ export function AppNavigator() {
         <Stack.Screen
           name="News"
           component={NewsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="BuiltinJobs"
+          component={BuiltinJobsScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

@@ -281,4 +281,42 @@ export async function migrate(): Promise<void> {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS builtin_job_settings (
+      user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      poll_interval_minutes INTEGER NOT NULL DEFAULT 5
+        CHECK (poll_interval_minutes IN (0, 1, 2, 3, 5, 10, 15, 30)),
+      keywords TEXT NOT NULL DEFAULT '',
+      locations TEXT[] NOT NULL DEFAULT '{}',
+      remote_only BOOLEAN NOT NULL DEFAULT false,
+      posted_within_days INTEGER NOT NULL DEFAULT 7
+        CHECK (posted_within_days IN (10, 20, 50, 100)),
+      seniority TEXT[] NOT NULL DEFAULT '{}',
+      job_type TEXT[] NOT NULL DEFAULT '{}',
+      company_allowlist TEXT[] NOT NULL DEFAULT '{}',
+      company_denylist TEXT[] NOT NULL DEFAULT '{}',
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
+  await pool.query(`
+    ALTER TABLE builtin_job_settings
+    DROP CONSTRAINT IF EXISTS builtin_job_settings_poll_interval_minutes_check;
+  `);
+  await pool.query(`
+    ALTER TABLE builtin_job_settings
+    ADD CONSTRAINT builtin_job_settings_poll_interval_minutes_check
+    CHECK (poll_interval_minutes IN (0, 1, 2, 3, 5, 10, 15, 30));
+  `);
+
+  await pool.query(`
+    ALTER TABLE builtin_job_settings
+    DROP CONSTRAINT IF EXISTS builtin_job_settings_posted_within_days_check;
+  `);
+  await pool.query(`
+    ALTER TABLE builtin_job_settings
+    ADD CONSTRAINT builtin_job_settings_posted_within_days_check
+    CHECK (posted_within_days IN (10, 20, 50, 100));
+  `);
 }

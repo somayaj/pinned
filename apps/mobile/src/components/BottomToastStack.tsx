@@ -11,9 +11,10 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useBuiltinJobs } from "../context/BuiltinJobsContext";
 import { useNews } from "../context/NewsContext";
 import { useStocks } from "../context/StocksContext";
-import type { NewsHeadline } from "../lib/api";
+import type { BuiltinJobResult, NewsHeadline } from "../lib/api";
 
 /** HomeScreen FAB: bottom-8 (32) + h-14 (56) + gap — sits above + button. */
 const ABOVE_FAB_OFFSET = 32 + 56 + 14;
@@ -59,6 +60,25 @@ function NewsHeadlineRow({ h }: { h: NewsHeadline }) {
   );
 }
 
+function JobRow({ j }: { j: BuiltinJobResult }) {
+  return (
+    <Pressable
+      onPress={() => {
+        if (j.url) void Linking.openURL(j.url);
+      }}
+      className="border-b border-slate-100 py-1.5 last:border-b-0 active:bg-slate-50"
+    >
+      <Text className="text-[11px] font-semibold leading-snug text-slate-900" numberOfLines={2}>
+        {j.title}
+      </Text>
+      <Text className="mt-0.5 text-[9px] leading-tight text-slate-500" numberOfLines={2}>
+        {j.company}
+        {j.location ? ` · ${j.location}` : ""}
+      </Text>
+    </Pressable>
+  );
+}
+
 /**
  * Stocks + news toasts: centered above the FAB, vertical stack with gap when both show.
  */
@@ -67,15 +87,19 @@ export function BottomToastStack() {
   const { width: windowWidth } = useWindowDimensions();
   const { lastAlert: stockAlert, dismissAlert: dismissStocks } = useStocks();
   const { lastAlert: newsAlert, dismissAlert: dismissNews } = useNews();
+  const { lastAlert: jobsAlert, dismissAlert: dismissJobs } = useBuiltinJobs();
 
   const toastW = Math.min(TOAST_MAX_W, windowWidth - H_INSET * 2);
 
   const stockSlideY = useRef(new Animated.Value(48)).current;
   const stockOpacity = useRef(new Animated.Value(0)).current;
+  const jobsSlideY = useRef(new Animated.Value(48)).current;
+  const jobsOpacity = useRef(new Animated.Value(0)).current;
   const newsSlideY = useRef(new Animated.Value(48)).current;
   const newsOpacity = useRef(new Animated.Value(0)).current;
   /** Avoid resetting opacity to 0 on every poll — that can leave stocks invisible. */
   const stockEnterPending = useRef(true);
+  const jobsEnterPending = useRef(true);
   const newsEnterPending = useRef(true);
 
   useEffect(() => {
@@ -118,6 +142,39 @@ export function BottomToastStack() {
   }, [newsAlert, dismissNews]);
 
   useEffect(() => {
+    if (!jobsAlert) return;
+    const hide = setTimeout(() => dismissJobs(), 30_000);
+    return () => clearTimeout(hide);
+  }, [jobsAlert, dismissJobs]);
+
+  useEffect(() => {
+    if (!jobsAlert) {
+      jobsEnterPending.current = true;
+      jobsOpacity.setValue(0);
+      return;
+    }
+    if (!jobsEnterPending.current) {
+      return;
+    }
+    jobsEnterPending.current = false;
+    jobsSlideY.setValue(48);
+    jobsOpacity.setValue(0);
+    Animated.parallel([
+      Animated.spring(jobsSlideY, {
+        toValue: 0,
+        useNativeDriver: true,
+        speed: 18,
+        bounciness: 5,
+      }),
+      Animated.timing(jobsOpacity, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [jobsAlert, jobsOpacity, jobsSlideY]);
+
+  useEffect(() => {
     if (!newsAlert) {
       newsEnterPending.current = true;
       newsOpacity.setValue(0);
@@ -145,11 +202,12 @@ export function BottomToastStack() {
   }, [newsAlert, newsOpacity, newsSlideY]);
 
   const hasStocks = Boolean(stockAlert && stockAlert.quotes.length > 0);
+  const hasJobs = Boolean(jobsAlert && jobsAlert.items.length > 0);
   const hasNews = Boolean(
     newsAlert && (newsAlert.cnn.length > 0 || newsAlert.cnbc.length > 0)
   );
 
-  if (!hasStocks && !hasNews) {
+  if (!hasStocks && !hasJobs && !hasNews) {
     return null;
   }
 
@@ -166,6 +224,13 @@ export function BottomToastStack() {
   const newsTime =
     newsAlert &&
     new Date(newsAlert.fetchedAt).toLocaleTimeString(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+  const jobsTime =
+    jobsAlert &&
+    new Date(jobsAlert.fetchedAt).toLocaleTimeString(undefined, {
       hour: "2-digit",
       minute: "2-digit",
     });
@@ -272,6 +337,61 @@ export function BottomToastStack() {
                       </Text>
                     </View>
                   </View>
+                ))}
+              </ScrollView>
+            </View>
+          </Animated.View>
+        ) : null}
+
+        {hasJobs && jobsAlert ? (
+          <Animated.View
+            pointerEvents="box-none"
+            style={{
+              width: toastW,
+              maxWidth: "100%",
+              alignSelf: "center",
+              zIndex: 5,
+              opacity: jobsOpacity,
+              transform: [{ translateY: jobsSlideY }],
+            }}
+          >
+            <View
+              pointerEvents="auto"
+              className="overflow-hidden rounded-xl border border-slate-300 bg-white shadow-xl shadow-slate-400/25"
+            >
+              <View className="flex-row items-center justify-between gap-2 border-b border-slate-100 bg-slate-50 px-2.5 py-1.5">
+                <View className="min-w-0 flex-1">
+                  <Text
+                    className="text-[11px] font-semibold leading-tight text-slate-800"
+                    numberOfLines={1}
+                  >
+                    Jobs · {jobsTime}
+                  </Text>
+                  <Text
+                    className="text-[9px] leading-tight text-slate-500"
+                    numberOfLines={2}
+                  >
+                    BuiltIn (scrape)
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={dismissJobs}
+                  accessibilityLabel="Dismiss jobs"
+                  hitSlop={8}
+                  className="h-7 w-7 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white active:bg-slate-100"
+                >
+                  <Text className="text-base font-semibold leading-none text-slate-600">
+                    ×
+                  </Text>
+                </Pressable>
+              </View>
+              <ScrollView
+                className="px-2 py-1"
+                nestedScrollEnabled
+                style={{ maxHeight: 220 }}
+              >
+                {jobsAlert.items.map((j) => (
+                  <JobRow key={j.id || j.url} j={j} />
                 ))}
               </ScrollView>
             </View>

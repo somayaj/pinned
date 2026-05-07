@@ -193,6 +193,12 @@ export function HomeScreen({ navigation }: Props) {
               <Text className="text-sm font-medium text-slate-700">Stocks</Text>
             </Pressable>
             <Pressable
+              onPress={() => navigation.navigate("BuiltinJobs")}
+              className="rounded-lg border border-slate-200 bg-white/90 px-3 py-2 active:bg-slate-200/80"
+            >
+              <Text className="text-sm font-medium text-slate-700">Jobs</Text>
+            </Pressable>
+            <Pressable
               onPress={() => navigation.navigate("News")}
               className="rounded-lg border border-slate-200 bg-white/90 px-3 py-2 active:bg-slate-200/80"
             >
