@@ -61,7 +61,7 @@ export function BuiltinJobsScreen({ navigation }: Props) {
   const [keywords, setKeywords] = useState("");
   const [locationsCsv, setLocationsCsv] = useState("");
   const [remoteOnly, setRemoteOnly] = useState(false);
-  const [postedWithinDays, setPostedWithinDays] = useState<number>(7);
+  const [postedWithinDays, setPostedWithinDays] = useState<number>(10);
   const [seniorityCsv, setSeniorityCsv] = useState("");
   const [jobTypeCsv, setJobTypeCsv] = useState("");
   const [companyAllowCsv, setCompanyAllowCsv] = useState("");

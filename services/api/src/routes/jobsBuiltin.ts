@@ -38,7 +38,7 @@ function defaultBuiltinJobSettings(): store.BuiltinJobSettingsRow {
     keywords: "",
     locations: [],
     remoteOnly: false,
-    postedWithinDays: 7,
+    postedWithinDays: 10,
     seniority: [],
     jobType: [],
     companyAllowlist: [],

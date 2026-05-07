@@ -290,7 +290,7 @@ export async function migrate(): Promise<void> {
       keywords TEXT NOT NULL DEFAULT '',
       locations TEXT[] NOT NULL DEFAULT '{}',
       remote_only BOOLEAN NOT NULL DEFAULT false,
-      posted_within_days INTEGER NOT NULL DEFAULT 7
+      posted_within_days INTEGER NOT NULL DEFAULT 10
         CHECK (posted_within_days IN (10, 20, 50, 100)),
       seniority TEXT[] NOT NULL DEFAULT '{}',
       job_type TEXT[] NOT NULL DEFAULT '{}',
