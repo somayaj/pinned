@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Pressable,
   ScrollView,
   Text,
@@ -15,7 +16,9 @@ import { useAuth } from "../context/AuthContext";
 import { useTasks } from "../context/TasksContext";
 import { useBuiltinJobs } from "../context/BuiltinJobsContext";
 import {
+  fetchBuiltinJobs,
   putBuiltinJobSettings,
+  type BuiltinJobResult,
   type BuiltinJobSettingsResponse,
 } from "../lib/api";
 
@@ -68,6 +71,11 @@ export function BuiltinJobsScreen({ navigation }: Props) {
   const [companyDenyCsv, setCompanyDenyCsv] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewItems, setPreviewItems] = useState<BuiltinJobResult[]>([]);
+  const [previewFetchedAt, setPreviewFetchedAt] = useState<string | null>(null);
+
   useEffect(() => {
     setPollMinutes(ctxSettings.pollIntervalMinutes ?? 5);
     setKeywords(ctxSettings.keywords ?? "");
@@ -79,6 +87,23 @@ export function BuiltinJobsScreen({ navigation }: Props) {
     setCompanyAllowCsv(joinCsv(ctxSettings.companyAllowlist ?? []));
     setCompanyDenyCsv(joinCsv(ctxSettings.companyDenylist ?? []));
   }, [ctxSettings]);
+
+  const loadPreview = useCallback(async () => {
+    if (!accessToken) return;
+    setPreviewLoading(true);
+    setPreviewError(null);
+    try {
+      const data = await fetchBuiltinJobs(apiBase, accessToken);
+      setPreviewItems(data.items ?? []);
+      setPreviewFetchedAt(data.fetchedAt ?? null);
+    } catch (e) {
+      setPreviewItems([]);
+      setPreviewFetchedAt(null);
+      setPreviewError(e instanceof Error ? e.message : "Could not load jobs");
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, [accessToken, apiBase]);
 
   const settingsToSave: BuiltinJobSettingsResponse = useMemo(
     () => ({
@@ -147,6 +172,9 @@ export function BuiltinJobsScreen({ navigation }: Props) {
           While the app is open, a jobs card can slide up when the results change on
           the interval you choose. This uses BuiltIn page scraping, so results may be
           partial if BuiltIn changes.
+        </Text>
+        <Text className="mt-2 text-[10px] text-slate-400" numberOfLines={1}>
+          API: {apiBase}
         </Text>
 
         <Text className="mt-6 text-xs font-medium uppercase text-slate-500">
@@ -309,6 +337,60 @@ export function BuiltinJobsScreen({ navigation }: Props) {
             <Text className="font-semibold text-white">Save job search</Text>
           )}
         </Pressable>
+
+        <Text className="mt-10 text-xs font-medium uppercase text-slate-500">
+          Preview jobs (debug)
+        </Text>
+        <Text className="mt-1 text-sm text-slate-600">
+          This helps confirm the API is returning items for the popup.
+        </Text>
+        <Pressable
+          onPress={() => void loadPreview()}
+          disabled={previewLoading}
+          className="mt-3 items-center rounded-xl border border-slate-200 bg-white py-3 active:bg-slate-100 disabled:opacity-50"
+        >
+          {previewLoading ? (
+            <ActivityIndicator />
+          ) : (
+            <Text className="font-semibold text-slate-800">Refresh preview</Text>
+          )}
+        </Pressable>
+        {previewError ? (
+          <Text className="mt-2 text-sm text-red-600">{previewError}</Text>
+        ) : null}
+        {previewFetchedAt ? (
+          <Text className="mt-2 text-xs text-slate-500" numberOfLines={1}>
+            Updated{" "}
+            {new Date(previewFetchedAt).toLocaleString(undefined, {
+              dateStyle: "medium",
+              timeStyle: "short",
+            })}
+          </Text>
+        ) : null}
+        {previewItems.length === 0 && !previewLoading && !previewError ? (
+          <Text className="mt-2 text-sm text-slate-500">No items returned.</Text>
+        ) : null}
+        {previewItems.length > 0 ? (
+          <View className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white">
+            {previewItems.slice(0, 10).map((j) => (
+              <Pressable
+                key={j.id || j.url}
+                onPress={() => {
+                  if (j.url) void Linking.openURL(j.url);
+                }}
+                className="border-b border-slate-100 px-3 py-3 last:border-b-0 active:bg-slate-100"
+              >
+                <Text className="text-sm font-semibold text-slate-900" numberOfLines={2}>
+                  {j.title}
+                </Text>
+                <Text className="mt-1 text-[11px] text-slate-500" numberOfLines={2}>
+                  {j.company}
+                  {j.location ? ` · ${j.location}` : ""}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
