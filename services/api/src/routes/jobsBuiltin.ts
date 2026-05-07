@@ -152,6 +152,26 @@ function slugifySearchTerm(raw: string): string {
   return s;
 }
 
+function buildBuiltinJobsUrl(settings: store.BuiltinJobSettingsRow): string {
+  const base = settings.remoteOnly ? "https://builtin.com/jobs/remote" : "https://builtin.com/jobs";
+  const u = new URL(base);
+
+  // Match the BuiltIn URL format the user wants, e.g.
+  // /jobs/remote?search=principal+software+engineer&daysSinceUpdated=1&city=&state=&country=USA&allLocations=true
+  const q = (settings.keywords ?? "").trim();
+  if (q) u.searchParams.set("search", q);
+  if (settings.postedWithinDays) {
+    u.searchParams.set("daysSinceUpdated", String(settings.postedWithinDays));
+  }
+  // Default to US, all locations (BuiltIn expects these params present in many views).
+  u.searchParams.set("country", "USA");
+  u.searchParams.set("allLocations", "true");
+  u.searchParams.set("city", "");
+  u.searchParams.set("state", "");
+
+  return u.toString();
+}
+
 async function fetchHtml(url: string): Promise<string> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 12_000);
@@ -247,16 +267,7 @@ jobsBuiltinRouter.get("/search", async (req, res) => {
     return;
   }
 
-  const keywordSlug = slugifySearchTerm(settings.keywords ?? "");
-  const hasKeyword = keywordSlug.length > 0;
-  // BuiltIn supports keyword pages like /jobs/search/web-developer
-  const baseUrl = hasKeyword
-    ? settings.remoteOnly
-      ? `https://builtin.com/jobs/remote/search/${encodeURIComponent(keywordSlug)}`
-      : `https://builtin.com/jobs/search/${encodeURIComponent(keywordSlug)}`
-    : settings.remoteOnly
-      ? "https://builtin.com/jobs/remote"
-      : "https://builtin.com/jobs";
+  const baseUrl = buildBuiltinJobsUrl(settings);
   const fetchedAt = new Date().toISOString();
 
   try {
@@ -273,7 +284,9 @@ jobsBuiltinRouter.get("/search", async (req, res) => {
     }
 
     const filtered = parsed
-      .filter((j) => (settings.remoteOnly ? isStrictRemote(j.location) : true))
+      // When remoteOnly is enabled we already use /jobs/remote; avoid being overly strict
+      // about label text (“Remote or Hybrid”, “In-Office or Remote”, etc.) which BuiltIn uses.
+      .filter((j) => (settings.remoteOnly ? isRemoteish(j.location) || j.location === "" : true))
       .filter((j) => matchesAnyLocation(j.location, settings.locations))
       .filter((j) => matchesKeywords(j.title, j.company, settings.keywords))
       .filter((j) =>
