@@ -157,20 +157,28 @@ function parseBuiltinJobsFromHtml(html: string): BuiltinJobResult[] {
   const $ = cheerio.load(html);
   const results: BuiltinJobResult[] = [];
 
-  // BuiltIn’s markup changes; use multiple heuristics:
-  // - Prefer job detail links (often /job/...) inside H2/H3 headings
-  // - Pull company from nearby /company/ link when available
-  const jobLinks = $("h2 a[href], h3 a[href]")
+  // BuiltIn’s markup changes. Heuristics:
+  // - Prefer any anchor that links to /job/...
+  // - Use heading anchors first, but fall back to all anchors.
+  const headingAnchors = $("h1 a[href], h2 a[href], h3 a[href]")
     .toArray()
     .map((el) => $(el));
+  const allAnchors = $("a[href]")
+    .toArray()
+    .map((el) => $(el));
+  const anchors = [...headingAnchors, ...allAnchors];
 
-  for (const $a of jobLinks) {
-    const href = String($a.attr("href") ?? "").trim();
+  for (const $a of anchors) {
+    const hrefRaw = String($a.attr("href") ?? "").trim();
+    if (!hrefRaw) continue;
+    const href = hrefRaw.startsWith("http") ? hrefRaw : hrefRaw;
     if (!href) continue;
-    if (!href.startsWith("/job/") && !href.includes("/job/")) continue;
+    if (!href.includes("/job/")) continue;
 
-    const title = normalizeForMatch($a.text()).replace(/^\w/, (c) => c.toUpperCase());
+    const title = $a.text().replace(/\s+/g, " ").trim();
     if (!title) continue;
+    // Ignore “Saved” / UI chrome fragments that sometimes appear as link text
+    if (title.length < 3) continue;
 
     const $card = $a.closest("article, li, div").first();
     const company =
@@ -194,17 +202,18 @@ function parseBuiltinJobsFromHtml(html: string): BuiltinJobResult[] {
       location = locMatch ? locMatch[1] : "";
     }
 
-    const url = absoluteBuiltinUrl(href);
+    const url = absoluteBuiltinUrl(hrefRaw);
     results.push({
       id: url,
-      title: $a.text().trim(),
+      title,
       company: company.trim() || "Unknown",
       location: location || "",
       url,
     });
   }
 
-  return uniqBy(results, (r) => r.id);
+  // Keep first occurrences; also cap parse output to avoid pathological pages.
+  return uniqBy(results, (r) => r.id).slice(0, 200);
 }
 
 jobsBuiltinRouter.get("/search", async (req, res) => {
@@ -224,6 +233,15 @@ jobsBuiltinRouter.get("/search", async (req, res) => {
   try {
     const html = await fetchHtml(baseUrl);
     const parsed = parseBuiltinJobsFromHtml(html);
+    if (parsed.length === 0) {
+      res.status(502).json({
+        error: "builtin_parse_failed",
+        fetchedAt,
+        items: [],
+        warnings: ["no_job_links_found"],
+      });
+      return;
+    }
 
     const filtered = parsed
       .filter((j) => (settings.remoteOnly ? isRemoteish(j.location) || j.location === "" : true))
