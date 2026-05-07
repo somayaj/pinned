@@ -132,6 +132,17 @@ function absoluteBuiltinUrl(href: string): string {
   return `https://builtin.com${path}`;
 }
 
+function slugifySearchTerm(raw: string): string {
+  const s = raw
+    .toLowerCase()
+    .trim()
+    .replace(/['"]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return s;
+}
+
 async function fetchHtml(url: string): Promise<string> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 12_000);
@@ -227,7 +238,14 @@ jobsBuiltinRouter.get("/search", async (req, res) => {
     return;
   }
 
-  const baseUrl = settings.remoteOnly ? "https://builtin.com/jobs/remote" : "https://builtin.com/jobs";
+  const keywordSlug = slugifySearchTerm(settings.keywords ?? "");
+  const hasKeyword = keywordSlug.length > 0;
+  // BuiltIn supports keyword pages like /jobs/search/web-developer
+  const baseUrl = hasKeyword
+    ? `https://builtin.com/jobs/search/${encodeURIComponent(keywordSlug)}`
+    : settings.remoteOnly
+      ? "https://builtin.com/jobs/remote"
+      : "https://builtin.com/jobs";
   const fetchedAt = new Date().toISOString();
 
   try {
