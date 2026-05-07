@@ -126,6 +126,15 @@ function isRemoteish(location: string): boolean {
   return s.includes("remote");
 }
 
+function isStrictRemote(location: string): boolean {
+  const s = normalizeForMatch(location);
+  if (!s.includes("remote")) return false;
+  // User expectation for “remote only”: exclude hybrid / in-office variants.
+  if (s.includes("hybrid")) return false;
+  if (s.includes("in-office")) return false;
+  return true;
+}
+
 function absoluteBuiltinUrl(href: string): string {
   if (/^https?:\/\//i.test(href)) return href;
   const path = href.startsWith("/") ? href : `/${href}`;
@@ -242,7 +251,9 @@ jobsBuiltinRouter.get("/search", async (req, res) => {
   const hasKeyword = keywordSlug.length > 0;
   // BuiltIn supports keyword pages like /jobs/search/web-developer
   const baseUrl = hasKeyword
-    ? `https://builtin.com/jobs/search/${encodeURIComponent(keywordSlug)}`
+    ? settings.remoteOnly
+      ? `https://builtin.com/jobs/remote/search/${encodeURIComponent(keywordSlug)}`
+      : `https://builtin.com/jobs/search/${encodeURIComponent(keywordSlug)}`
     : settings.remoteOnly
       ? "https://builtin.com/jobs/remote"
       : "https://builtin.com/jobs";
@@ -262,7 +273,7 @@ jobsBuiltinRouter.get("/search", async (req, res) => {
     }
 
     const filtered = parsed
-      .filter((j) => (settings.remoteOnly ? isRemoteish(j.location) || j.location === "" : true))
+      .filter((j) => (settings.remoteOnly ? isStrictRemote(j.location) : true))
       .filter((j) => matchesAnyLocation(j.location, settings.locations))
       .filter((j) => matchesKeywords(j.title, j.company, settings.keywords))
       .filter((j) =>
