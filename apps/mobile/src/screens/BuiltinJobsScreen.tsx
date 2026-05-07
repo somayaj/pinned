@@ -75,6 +75,9 @@ export function BuiltinJobsScreen({ navigation }: Props) {
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewItems, setPreviewItems] = useState<BuiltinJobResult[]>([]);
   const [previewFetchedAt, setPreviewFetchedAt] = useState<string | null>(null);
+  const [previewSourceUrl, setPreviewSourceUrl] = useState<string | null>(null);
+  const [previewWarnings, setPreviewWarnings] = useState<string[] | null>(null);
+  const [previewParsedCount, setPreviewParsedCount] = useState<number | null>(null);
 
   useEffect(() => {
     setPollMinutes(ctxSettings.pollIntervalMinutes ?? 5);
@@ -96,9 +99,15 @@ export function BuiltinJobsScreen({ navigation }: Props) {
       const data = await fetchBuiltinJobs(apiBase, accessToken);
       setPreviewItems(data.items ?? []);
       setPreviewFetchedAt(data.fetchedAt ?? null);
+      setPreviewSourceUrl(data.sourceUrl ?? null);
+      setPreviewWarnings(data.warnings ?? null);
+      setPreviewParsedCount(typeof data.parsedCount === "number" ? data.parsedCount : null);
     } catch (e) {
       setPreviewItems([]);
       setPreviewFetchedAt(null);
+      setPreviewSourceUrl(null);
+      setPreviewWarnings(null);
+      setPreviewParsedCount(null);
       setPreviewError(e instanceof Error ? e.message : "Could not load jobs");
     } finally {
       setPreviewLoading(false);
@@ -365,6 +374,26 @@ export function BuiltinJobsScreen({ navigation }: Props) {
               dateStyle: "medium",
               timeStyle: "short",
             })}
+          </Text>
+        ) : null}
+        {previewSourceUrl ? (
+          <Pressable
+            onPress={() => void Linking.openURL(previewSourceUrl)}
+            className="mt-1"
+          >
+            <Text className="text-[11px] text-slate-500" numberOfLines={2}>
+              Source: {previewSourceUrl}
+            </Text>
+          </Pressable>
+        ) : null}
+        {previewParsedCount != null ? (
+          <Text className="mt-1 text-[11px] text-slate-500" numberOfLines={1}>
+            Parsed: {previewParsedCount}
+          </Text>
+        ) : null}
+        {previewWarnings?.length ? (
+          <Text className="mt-1 text-[11px] text-amber-800" numberOfLines={3}>
+            Warnings: {previewWarnings.join("; ")}
           </Text>
         ) : null}
         {previewItems.length === 0 && !previewLoading && !previewError ? (

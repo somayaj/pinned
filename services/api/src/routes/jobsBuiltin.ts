@@ -267,16 +267,17 @@ jobsBuiltinRouter.get("/search", async (req, res) => {
     return;
   }
 
-  const baseUrl = buildBuiltinJobsUrl(settings);
+  const sourceUrl = buildBuiltinJobsUrl(settings);
   const fetchedAt = new Date().toISOString();
 
   try {
-    const html = await fetchHtml(baseUrl);
+    const html = await fetchHtml(sourceUrl);
     const parsed = parseBuiltinJobsFromHtml(html);
     if (parsed.length === 0) {
       res.status(502).json({
         error: "builtin_parse_failed",
         fetchedAt,
+        sourceUrl,
         items: [],
         warnings: ["no_job_links_found"],
       });
@@ -307,6 +308,8 @@ jobsBuiltinRouter.get("/search", async (req, res) => {
       if (hasAnyFilters) {
         res.json({
           fetchedAt,
+          sourceUrl,
+          parsedCount: parsed.length,
           items: [],
           partial: true,
           warnings: ["no_matches_using_filters"],
@@ -317,6 +320,8 @@ jobsBuiltinRouter.get("/search", async (req, res) => {
       // No filters set → return top results so the feature is still useful by default.
       res.json({
         fetchedAt,
+        sourceUrl,
+        parsedCount: parsed.length,
         items: parsed.slice(0, 10),
         partial: true,
         warnings: ["no_filters_set"],
@@ -324,10 +329,10 @@ jobsBuiltinRouter.get("/search", async (req, res) => {
       return;
     }
 
-    res.json({ fetchedAt, items: filtered });
+    res.json({ fetchedAt, sourceUrl, parsedCount: parsed.length, items: filtered });
   } catch (e) {
     console.error("[jobs/builtin] scrape failed", e);
-    res.status(502).json({ error: "builtin_unavailable", fetchedAt, items: [] });
+    res.status(502).json({ error: "builtin_unavailable", fetchedAt, sourceUrl, items: [] });
   }
 });
 

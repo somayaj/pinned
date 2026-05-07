@@ -386,6 +386,8 @@ export type BuiltinJobResult = {
 
 export type BuiltinJobsResponse = {
   fetchedAt: string;
+  sourceUrl?: string;
+  parsedCount?: number;
   items: BuiltinJobResult[];
   partial?: boolean;
   warnings?: string[];
