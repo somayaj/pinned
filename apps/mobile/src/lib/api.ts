@@ -387,6 +387,8 @@ export type BuiltinJobResult = {
 export type BuiltinJobsResponse = {
   fetchedAt: string;
   items: BuiltinJobResult[];
+  partial?: boolean;
+  warnings?: string[];
 };
 
 export async function fetchBuiltinJobSettings(

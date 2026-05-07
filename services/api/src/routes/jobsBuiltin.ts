@@ -252,6 +252,18 @@ jobsBuiltinRouter.get("/search", async (req, res) => {
       )
       .slice(0, 10);
 
+    if (filtered.length === 0) {
+      // Don’t leave the user with an empty toast/preview when filters are too strict
+      // (and/or BuiltIn parsing yields minimal metadata). Return the top results anyway.
+      res.json({
+        fetchedAt,
+        items: parsed.slice(0, 10),
+        partial: true,
+        warnings: ["no_matches_using_filters"],
+      });
+      return;
+    }
+
     res.json({ fetchedAt, items: filtered });
   } catch (e) {
     console.error("[jobs/builtin] scrape failed", e);
