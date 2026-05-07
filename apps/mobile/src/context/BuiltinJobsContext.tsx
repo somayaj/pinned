@@ -57,6 +57,8 @@ export function BuiltinJobsProvider({ children }: { children: React.ReactNode })
   const { apiBase } = useTasks();
   const [settings, setSettings] = useState<BuiltinJobSettingsResponse>(defaultSettings);
   const [lastAlert, setLastAlert] = useState<BuiltinJobsAlertPayload | null>(null);
+  const lastAlertRef = useRef<BuiltinJobsAlertPayload | null>(null);
+  lastAlertRef.current = lastAlert;
   const lastDigestRef = useRef<string | null>(null);
   const pollDepsRef = useRef({
     accessToken: "" as string | undefined,
@@ -105,10 +107,15 @@ export function BuiltinJobsProvider({ children }: { children: React.ReactNode })
         const d = digestJobs(data);
         const digestChanged = lastDigestRef.current === null || d !== lastDigestRef.current;
         lastDigestRef.current = d;
-        if (!digestChanged) return;
+        if (digestChanged) {
+          playJobsSound();
+        }
 
-        playJobsSound();
-        setLastAlert({ items: data.items, fetchedAt: data.fetchedAt });
+        // Show jobs even when nothing is "new", but avoid resetting the toast/timer
+        // every poll while it's already visible.
+        if (digestChanged || lastAlertRef.current === null) {
+          setLastAlert({ items: data.items, fetchedAt: data.fetchedAt });
+        }
       } catch {
         /* scrape / network errors are non-fatal */
       }
