@@ -6,7 +6,7 @@ import * as store from "../store.js";
 export const jobsBuiltinRouter = Router();
 
 const POLL_MINUTES = [0, 1, 2, 3, 5, 10, 15, 30] as const;
-const POSTED_WITHIN_DAYS = [10, 20, 50, 100] as const;
+const POSTED_WITHIN_DAYS = [1, 3] as const;
 
 const putBuiltinJobSettingsBody = z.object({
   pollIntervalMinutes: z.coerce
@@ -38,7 +38,7 @@ function defaultBuiltinJobSettings(): store.BuiltinJobSettingsRow {
     keywords: "",
     locations: [],
     remoteOnly: false,
-    postedWithinDays: 10,
+    postedWithinDays: 1,
     seniority: [],
     jobType: [],
     companyAllowlist: [],

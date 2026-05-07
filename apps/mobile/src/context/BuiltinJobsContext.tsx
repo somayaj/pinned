@@ -40,7 +40,7 @@ function defaultSettings(): BuiltinJobSettingsResponse {
     keywords: "",
     locations: [],
     remoteOnly: false,
-    postedWithinDays: 10,
+    postedWithinDays: 1,
     seniority: [],
     jobType: [],
     companyAllowlist: [],

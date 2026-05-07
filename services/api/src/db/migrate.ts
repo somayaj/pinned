@@ -290,8 +290,8 @@ export async function migrate(): Promise<void> {
       keywords TEXT NOT NULL DEFAULT '',
       locations TEXT[] NOT NULL DEFAULT '{}',
       remote_only BOOLEAN NOT NULL DEFAULT false,
-      posted_within_days INTEGER NOT NULL DEFAULT 10
-        CHECK (posted_within_days IN (10, 20, 50, 100)),
+      posted_within_days INTEGER NOT NULL DEFAULT 1
+        CHECK (posted_within_days IN (1, 3)),
       seniority TEXT[] NOT NULL DEFAULT '{}',
       job_type TEXT[] NOT NULL DEFAULT '{}',
       company_allowlist TEXT[] NOT NULL DEFAULT '{}',
@@ -317,6 +317,6 @@ export async function migrate(): Promise<void> {
   await pool.query(`
     ALTER TABLE builtin_job_settings
     ADD CONSTRAINT builtin_job_settings_posted_within_days_check
-    CHECK (posted_within_days IN (10, 20, 50, 100));
+    CHECK (posted_within_days IN (1, 3));
   `);
 }

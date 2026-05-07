@@ -23,7 +23,7 @@ import {
 } from "../lib/api";
 
 const POLL_MINUTES = [0, 1, 2, 3, 5, 10, 15, 30] as const;
-const POSTED_WITHIN_DAYS = [10, 20, 50, 100] as const;
+const POSTED_WITHIN_DAYS = [1, 3] as const;
 
 function labelPollMinutes(m: number): string {
   if (m === 0) return "Off";
@@ -64,7 +64,7 @@ export function BuiltinJobsScreen({ navigation }: Props) {
   const [keywords, setKeywords] = useState("");
   const [locationsCsv, setLocationsCsv] = useState("");
   const [remoteOnly, setRemoteOnly] = useState(false);
-  const [postedWithinDays, setPostedWithinDays] = useState<number>(10);
+  const [postedWithinDays, setPostedWithinDays] = useState<number>(1);
   const [seniorityCsv, setSeniorityCsv] = useState("");
   const [jobTypeCsv, setJobTypeCsv] = useState("");
   const [companyAllowCsv, setCompanyAllowCsv] = useState("");
@@ -81,7 +81,7 @@ export function BuiltinJobsScreen({ navigation }: Props) {
     setKeywords(ctxSettings.keywords ?? "");
     setLocationsCsv(joinCsv(ctxSettings.locations ?? []));
     setRemoteOnly(Boolean(ctxSettings.remoteOnly));
-    setPostedWithinDays(ctxSettings.postedWithinDays ?? 7);
+    setPostedWithinDays(ctxSettings.postedWithinDays ?? 1);
     setSeniorityCsv(joinCsv(ctxSettings.seniority ?? []));
     setJobTypeCsv(joinCsv(ctxSettings.jobType ?? []));
     setCompanyAllowCsv(joinCsv(ctxSettings.companyAllowlist ?? []));
