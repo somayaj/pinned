@@ -253,13 +253,31 @@ jobsBuiltinRouter.get("/search", async (req, res) => {
       .slice(0, 10);
 
     if (filtered.length === 0) {
-      // Don’t leave the user with an empty toast/preview when filters are too strict
-      // (and/or BuiltIn parsing yields minimal metadata). Return the top results anyway.
+      const hasAnyFilters =
+        Boolean(settings.remoteOnly) ||
+        (settings.keywords ?? "").trim().length > 0 ||
+        (settings.locations?.length ?? 0) > 0 ||
+        (settings.companyAllowlist?.length ?? 0) > 0 ||
+        (settings.companyDenylist?.length ?? 0) > 0;
+
+      // If the user set filters (like keywords), do NOT return unrelated jobs — return
+      // an explicit “no matches” response so the UI doesn’t mislead them.
+      if (hasAnyFilters) {
+        res.json({
+          fetchedAt,
+          items: [],
+          partial: true,
+          warnings: ["no_matches_using_filters"],
+        });
+        return;
+      }
+
+      // No filters set → return top results so the feature is still useful by default.
       res.json({
         fetchedAt,
         items: parsed.slice(0, 10),
         partial: true,
-        warnings: ["no_matches_using_filters"],
+        warnings: ["no_filters_set"],
       });
       return;
     }
