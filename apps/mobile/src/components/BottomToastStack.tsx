@@ -71,10 +71,14 @@ function JobRow({ j }: { j: BuiltinJobResult }) {
       <Text className="text-[11px] font-semibold leading-snug text-slate-900" numberOfLines={2}>
         {j.title}
       </Text>
-      <Text className="mt-0.5 text-[9px] leading-tight text-slate-500" numberOfLines={2}>
-        {j.company}
-        {j.location ? ` · ${j.location}` : ""}
+      <Text className="mt-0.5 text-[9px] font-semibold leading-tight text-slate-600" numberOfLines={1}>
+        {j.company || "Unknown"}
       </Text>
+      {j.location ? (
+        <Text className="mt-0.5 text-[9px] leading-tight text-slate-500" numberOfLines={1}>
+          {j.location}
+        </Text>
+      ) : null}
     </Pressable>
   );
 }
