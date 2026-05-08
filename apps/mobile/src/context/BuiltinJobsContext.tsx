@@ -38,13 +38,7 @@ function defaultSettings(): BuiltinJobSettingsResponse {
   return {
     pollIntervalMinutes: 5,
     keywords: "",
-    locations: [],
     remoteOnly: false,
-    postedWithinDays: 1,
-    seniority: [],
-    jobType: [],
-    companyAllowlist: [],
-    companyDenylist: [],
   };
 }
 

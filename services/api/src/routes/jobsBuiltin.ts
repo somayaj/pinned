@@ -8,29 +8,37 @@ export const jobsBuiltinRouter = Router();
 const POLL_MINUTES = [0, 1, 2, 3, 5, 10, 15, 30] as const;
 const POSTED_WITHIN_DAYS = [1, 3] as const;
 
-const putBuiltinJobSettingsBody = z.object({
-  pollIntervalMinutes: z.coerce
-    .number()
-    .int()
-    .refine((n) => POLL_MINUTES.includes(n as (typeof POLL_MINUTES)[number]), {
-      message: "invalid_poll_interval",
-    }),
-  keywords: z.string().max(200),
-  locations: z.array(z.string().min(1).max(80)).max(10),
-  remoteOnly: z.boolean(),
-  postedWithinDays: z.coerce
-    .number()
-    .int()
-    .refine(
-      (n) =>
-        POSTED_WITHIN_DAYS.includes(n as (typeof POSTED_WITHIN_DAYS)[number]),
-      { message: "invalid_posted_within_days" }
-    ),
-  seniority: z.array(z.string().min(1).max(40)).max(10),
-  jobType: z.array(z.string().min(1).max(40)).max(10),
-  companyAllowlist: z.array(z.string().min(1).max(80)).max(50),
-  companyDenylist: z.array(z.string().min(1).max(80)).max(50),
-});
+const putBuiltinJobSettingsBody = z
+  .object({
+    pollIntervalMinutes: z.coerce
+      .number()
+      .int()
+      .refine((n) => POLL_MINUTES.includes(n as (typeof POLL_MINUTES)[number]), {
+        message: "invalid_poll_interval",
+      }),
+    keywords: z.string().max(200),
+    remoteOnly: z.boolean(),
+  })
+  .passthrough();
+
+const legacyOptionalFiltersBody = z
+  .object({
+    locations: z.array(z.string().min(1).max(80)).max(10).optional(),
+    postedWithinDays: z.coerce
+      .number()
+      .int()
+      .refine(
+        (n) =>
+          POSTED_WITHIN_DAYS.includes(n as (typeof POSTED_WITHIN_DAYS)[number]),
+        { message: "invalid_posted_within_days" }
+      )
+      .optional(),
+    seniority: z.array(z.string().min(1).max(40)).max(10).optional(),
+    jobType: z.array(z.string().min(1).max(40)).max(10).optional(),
+    companyAllowlist: z.array(z.string().min(1).max(80)).max(50).optional(),
+    companyDenylist: z.array(z.string().min(1).max(80)).max(50).optional(),
+  })
+  .passthrough();
 
 function defaultBuiltinJobSettings(): store.BuiltinJobSettingsRow {
   return {
@@ -50,7 +58,12 @@ jobsBuiltinRouter.get("/settings", async (req, res) => {
   const userId = req.userId!;
   try {
     const row = await store.getBuiltinJobSettings(userId);
-    res.json(row ?? defaultBuiltinJobSettings());
+    const s = row ?? defaultBuiltinJobSettings();
+    res.json({
+      pollIntervalMinutes: s.pollIntervalMinutes,
+      keywords: s.keywords,
+      remoteOnly: s.remoteOnly,
+    });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: "database_error" });
@@ -64,10 +77,34 @@ jobsBuiltinRouter.put("/settings", async (req, res) => {
     res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
     return;
   }
+  const legacy = legacyOptionalFiltersBody.safeParse(req.body);
+  if (!legacy.success) {
+    res.status(400).json({ error: "invalid_body", details: legacy.error.flatten() });
+    return;
+  }
   try {
+    const current = (await store.getBuiltinJobSettings(userId)) ?? defaultBuiltinJobSettings();
     const data = parsed.data;
-    await store.setBuiltinJobSettings(userId, data);
-    res.json(data);
+
+    await store.setBuiltinJobSettings(userId, {
+      ...current,
+      pollIntervalMinutes: data.pollIntervalMinutes,
+      keywords: data.keywords,
+      remoteOnly: data.remoteOnly,
+      // wipe other filters (user request), but accept legacy payloads without breaking
+      locations: [],
+      postedWithinDays: legacy.data.postedWithinDays ?? current.postedWithinDays,
+      seniority: [],
+      jobType: [],
+      companyAllowlist: [],
+      companyDenylist: [],
+    });
+
+    res.json({
+      pollIntervalMinutes: data.pollIntervalMinutes,
+      keywords: data.keywords,
+      remoteOnly: data.remoteOnly,
+    });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: "database_error" });
@@ -309,20 +346,13 @@ jobsBuiltinRouter.get("/search", async (req, res) => {
       // When remoteOnly is enabled we already use /jobs/remote; avoid being overly strict
       // but still enforce the user's expectation: remote means not hybrid / in-office.
       .filter((j) => (settings.remoteOnly ? isStrictRemote(j.location) : true))
-      .filter((j) => matchesAnyLocation(j.location, settings.locations))
       .filter((j) => matchesKeywords(j.title, j.company, settings.keywords))
-      .filter((j) =>
-        matchesCompanyAllowDeny(j.company, settings.companyAllowlist, settings.companyDenylist)
-      )
       .slice(0, 10);
 
     if (filtered.length === 0) {
       const hasAnyFilters =
         Boolean(settings.remoteOnly) ||
-        (settings.keywords ?? "").trim().length > 0 ||
-        (settings.locations?.length ?? 0) > 0 ||
-        (settings.companyAllowlist?.length ?? 0) > 0 ||
-        (settings.companyDenylist?.length ?? 0) > 0;
+        (settings.keywords ?? "").trim().length > 0;
 
       // If the user set filters (like keywords), do NOT return unrelated jobs — return
       // an explicit “no matches” response so the UI doesn’t mislead them.

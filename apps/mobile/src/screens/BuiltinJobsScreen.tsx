@@ -23,31 +23,10 @@ import {
 } from "../lib/api";
 
 const POLL_MINUTES = [0, 1, 2, 3, 5, 10, 15, 30] as const;
-const POSTED_WITHIN_DAYS = [1, 3] as const;
 
 function labelPollMinutes(m: number): string {
   if (m === 0) return "Off";
   return `${m} min`;
-}
-
-function parseCsvLines(raw: string): string[] {
-  const parts = raw
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const p of parts) {
-    const k = p.toLowerCase();
-    if (seen.has(k)) continue;
-    seen.add(k);
-    out.push(p);
-  }
-  return out;
-}
-
-function joinCsv(list: string[]): string {
-  return list.join(", ");
 }
 
 type Props = {
@@ -62,13 +41,7 @@ export function BuiltinJobsScreen({ navigation }: Props) {
 
   const [pollMinutes, setPollMinutes] = useState(5);
   const [keywords, setKeywords] = useState("");
-  const [locationsCsv, setLocationsCsv] = useState("");
   const [remoteOnly, setRemoteOnly] = useState(false);
-  const [postedWithinDays, setPostedWithinDays] = useState<number>(1);
-  const [seniorityCsv, setSeniorityCsv] = useState("");
-  const [jobTypeCsv, setJobTypeCsv] = useState("");
-  const [companyAllowCsv, setCompanyAllowCsv] = useState("");
-  const [companyDenyCsv, setCompanyDenyCsv] = useState("");
   const [busy, setBusy] = useState(false);
 
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -82,13 +55,7 @@ export function BuiltinJobsScreen({ navigation }: Props) {
   useEffect(() => {
     setPollMinutes(ctxSettings.pollIntervalMinutes ?? 5);
     setKeywords(ctxSettings.keywords ?? "");
-    setLocationsCsv(joinCsv(ctxSettings.locations ?? []));
     setRemoteOnly(Boolean(ctxSettings.remoteOnly));
-    setPostedWithinDays(ctxSettings.postedWithinDays ?? 1);
-    setSeniorityCsv(joinCsv(ctxSettings.seniority ?? []));
-    setJobTypeCsv(joinCsv(ctxSettings.jobType ?? []));
-    setCompanyAllowCsv(joinCsv(ctxSettings.companyAllowlist ?? []));
-    setCompanyDenyCsv(joinCsv(ctxSettings.companyDenylist ?? []));
   }, [ctxSettings]);
 
   const loadPreview = useCallback(async () => {
@@ -118,25 +85,9 @@ export function BuiltinJobsScreen({ navigation }: Props) {
     () => ({
       pollIntervalMinutes: pollMinutes,
       keywords,
-      locations: parseCsvLines(locationsCsv),
       remoteOnly,
-      postedWithinDays,
-      seniority: parseCsvLines(seniorityCsv),
-      jobType: parseCsvLines(jobTypeCsv),
-      companyAllowlist: parseCsvLines(companyAllowCsv),
-      companyDenylist: parseCsvLines(companyDenyCsv),
     }),
-    [
-      pollMinutes,
-      keywords,
-      locationsCsv,
-      remoteOnly,
-      postedWithinDays,
-      seniorityCsv,
-      jobTypeCsv,
-      companyAllowCsv,
-      companyDenyCsv,
-    ]
+    [pollMinutes, keywords, remoteOnly]
   );
 
   const save = useCallback(async () => {
@@ -222,19 +173,6 @@ export function BuiltinJobsScreen({ navigation }: Props) {
           className="mt-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900"
         />
 
-        <Text className="mt-6 text-xs font-medium uppercase text-slate-500">
-          Locations (comma-separated)
-        </Text>
-        <TextInput
-          value={locationsCsv}
-          onChangeText={setLocationsCsv}
-          placeholder='e.g. "New York, NY, Austin, TX"'
-          placeholderTextColor="#94a3b8"
-          autoCapitalize="words"
-          autoCorrect={false}
-          className="mt-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900"
-        />
-
         <View className="mt-4 flex-row items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3">
           <View className="min-w-0 flex-1 pr-3">
             <Text className="text-sm font-semibold text-slate-900">Remote only</Text>
@@ -257,83 +195,6 @@ export function BuiltinJobsScreen({ navigation }: Props) {
             </Text>
           </Pressable>
         </View>
-
-        <Text className="mt-6 text-xs font-medium uppercase text-slate-500">
-          Posted within
-        </Text>
-        <View className="mt-2 flex-row flex-wrap gap-2">
-          {POSTED_WITHIN_DAYS.map((d) => (
-            <Pressable
-              key={d}
-              onPress={() => setPostedWithinDays(d)}
-              className={`rounded-full border px-3 py-2 ${
-                postedWithinDays === d
-                  ? "border-pin-600 bg-pin-50"
-                  : "border-slate-200 bg-white"
-              }`}
-            >
-              <Text
-                className={`text-sm font-semibold ${
-                  postedWithinDays === d ? "text-pin-900" : "text-slate-700"
-                }`}
-              >
-                {`${d} days`}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <Text className="mt-6 text-xs font-medium uppercase text-slate-500">
-          Seniority (comma-separated, optional)
-        </Text>
-        <TextInput
-          value={seniorityCsv}
-          onChangeText={setSeniorityCsv}
-          placeholder='e.g. "Senior, Staff"'
-          placeholderTextColor="#94a3b8"
-          autoCapitalize="words"
-          autoCorrect={false}
-          className="mt-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900"
-        />
-
-        <Text className="mt-6 text-xs font-medium uppercase text-slate-500">
-          Job type (comma-separated, optional)
-        </Text>
-        <TextInput
-          value={jobTypeCsv}
-          onChangeText={setJobTypeCsv}
-          placeholder='e.g. "Full-time, Contract"'
-          placeholderTextColor="#94a3b8"
-          autoCapitalize="words"
-          autoCorrect={false}
-          className="mt-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900"
-        />
-
-        <Text className="mt-6 text-xs font-medium uppercase text-slate-500">
-          Company allowlist (comma-separated, optional)
-        </Text>
-        <TextInput
-          value={companyAllowCsv}
-          onChangeText={setCompanyAllowCsv}
-          placeholder='e.g. "Stripe, Airbnb"'
-          placeholderTextColor="#94a3b8"
-          autoCapitalize="words"
-          autoCorrect={false}
-          className="mt-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900"
-        />
-
-        <Text className="mt-6 text-xs font-medium uppercase text-slate-500">
-          Company denylist (comma-separated, optional)
-        </Text>
-        <TextInput
-          value={companyDenyCsv}
-          onChangeText={setCompanyDenyCsv}
-          placeholder='e.g. "Acme Corp"'
-          placeholderTextColor="#94a3b8"
-          autoCapitalize="words"
-          autoCorrect={false}
-          className="mt-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900"
-        />
 
         <Pressable
           onPress={() => void save()}

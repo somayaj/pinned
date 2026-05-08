@@ -366,13 +366,7 @@ export async function putNewsSettings(
 export type BuiltinJobSettingsResponse = {
   pollIntervalMinutes: number;
   keywords: string;
-  locations: string[];
   remoteOnly: boolean;
-  postedWithinDays: number;
-  seniority: string[];
-  jobType: string[];
-  companyAllowlist: string[];
-  companyDenylist: string[];
 };
 
 export type BuiltinJobResult = {
