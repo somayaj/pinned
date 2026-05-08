@@ -245,72 +245,62 @@ function parseBuiltinJobsFromHtml(html: string): BuiltinJobResult[] {
   const $ = cheerio.load(html);
   const results: BuiltinJobResult[] = [];
 
-  // BuiltIn’s markup changes. Heuristics:
-  // - Prefer any anchor that links to /job/...
-  // - Use heading anchors first, but fall back to all anchors.
-  const headingAnchors = $("h1 a[href], h2 a[href], h3 a[href]")
+  // Prefer stable BuiltIn job card markup when available.
+  const cardTitles = $("a[data-id='job-card-title'][href]")
     .toArray()
     .map((el) => $(el));
-  const allAnchors = $("a[href]")
+
+  if (cardTitles.length > 0) {
+    for (const $t of cardTitles) {
+      const hrefRaw = String($t.attr("href") ?? "").trim();
+      if (!hrefRaw || !hrefRaw.includes("/job/")) continue;
+      const title = $t.text().replace(/\s+/g, " ").trim();
+      if (!title) continue;
+
+      const $row = $t.closest("div").parent();
+      const company =
+        $row.find("a[data-id='company-title']").first().text().trim() ||
+        $row.find("a[href^='/company/']").first().text().trim() ||
+        "Unknown";
+
+      // BuiltIn remote/hybrid label isn't reliably present in the SSR snippet.
+      // Preserve any visible label if present; otherwise leave blank.
+      const rowText = $row.text().replace(/\s+/g, " ").trim();
+      const labelMatch = rowText.match(
+        /\b(In-Office or Remote|Remote or Hybrid|In-Office|Hybrid|Remote)\b/i
+      );
+      const location = labelMatch ? labelMatch[0] : "";
+
+      const url = absoluteBuiltinUrl(hrefRaw);
+      results.push({
+        id: url,
+        title,
+        company: company.trim() || "Unknown",
+        location,
+        url,
+      });
+    }
+
+    return uniqBy(results, (r) => r.id).slice(0, 200);
+  }
+
+  // Fallback: heuristic parsing for pages without data-id markers.
+  const anchors = $("a[href]")
     .toArray()
     .map((el) => $(el));
-  const anchors = [...headingAnchors, ...allAnchors];
 
   for (const $a of anchors) {
     const hrefRaw = String($a.attr("href") ?? "").trim();
-    if (!hrefRaw) continue;
-    const href = hrefRaw.startsWith("http") ? hrefRaw : hrefRaw;
-    if (!href) continue;
-    if (!href.includes("/job/")) continue;
-
+    if (!hrefRaw || !hrefRaw.includes("/job/")) continue;
     const title = $a.text().replace(/\s+/g, " ").trim();
-    if (!title) continue;
-    // Ignore “Saved” / UI chrome fragments that sometimes appear as link text
-    if (title.length < 3) continue;
-
-    // BuiltIn often places company link in a sibling element, not inside the title anchor container.
+    if (!title || title.length < 3) continue;
     const $container = $a.closest("section, article, li, div");
     const company =
-      $container.find('a[href^="/company/"][data-id="company-title"]').first().text().trim() ||
+      $container.find("a[data-id='company-title']").first().text().trim() ||
       $container.find('a[href^="/company/"]').first().text().trim() ||
-      (() => {
-        const alt = $container.find("img[alt]").first().attr("alt");
-        if (alt && /logo/i.test(alt)) {
-          const cleaned = String(alt).replace(/\s+logo\s*$/i, "").trim();
-          if (cleaned) return cleaned;
-        }
-        return "";
-      })() ||
       "Unknown";
-
-    const cardText = $container.text().replace(/\s+/g, " ").trim();
-    // crude location capture: prefer explicit “Remote/Hybrid” label plus nearby location if present
-    let location = "";
-    // Prefer longer labels first so "Remote or Hybrid" doesn't get truncated to "Remote".
-    const remoteMatch = cardText.match(
-      /\b(In-Office or Remote|Remote or Hybrid|In-Office|Hybrid|Remote)\b/i
-    );
-    if (remoteMatch) {
-      const label = remoteMatch[0];
-      // keep a nearby location if present
-      const after = cardText.slice(remoteMatch.index ?? 0);
-      const locMatch =
-        after.match(/\b([A-Za-z .'-]+,\s*[A-Z]{2},\s*USA)\b/) ??
-        after.match(/\b(\d+\s+Locations)\b/i);
-      location = locMatch ? `${label} · ${locMatch[1]}` : label;
-    } else {
-      const locMatch = cardText.match(/\b([A-Za-z .'-]+,\s*[A-Z]{2},\s*USA)\b/);
-      location = locMatch ? locMatch[1] : "";
-    }
-
     const url = absoluteBuiltinUrl(hrefRaw);
-    results.push({
-      id: url,
-      title,
-      company: company.trim() || "Unknown",
-      location: location || "",
-      url,
-    });
+    results.push({ id: url, title, company, location: "", url });
   }
 
   // Keep first occurrences; also cap parse output to avoid pathological pages.
