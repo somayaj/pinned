@@ -367,6 +367,7 @@ export type BuiltinJobSettingsResponse = {
   pollIntervalMinutes: number;
   keywords: string;
   remoteOnly: boolean;
+  postedWithinDays: 1 | 3;
 };
 
 export type BuiltinJobResult = {

@@ -18,12 +18,6 @@ const putBuiltinJobSettingsBody = z
       }),
     keywords: z.string().max(200),
     remoteOnly: z.boolean(),
-  })
-  .passthrough();
-
-const legacyOptionalFiltersBody = z
-  .object({
-    locations: z.array(z.string().min(1).max(80)).max(10).optional(),
     postedWithinDays: z.coerce
       .number()
       .int()
@@ -31,8 +25,14 @@ const legacyOptionalFiltersBody = z
         (n) =>
           POSTED_WITHIN_DAYS.includes(n as (typeof POSTED_WITHIN_DAYS)[number]),
         { message: "invalid_posted_within_days" }
-      )
-      .optional(),
+      ),
+  })
+  .passthrough();
+
+const legacyOptionalFiltersBody = z
+  .object({
+    locations: z.array(z.string().min(1).max(80)).max(10).optional(),
+    postedWithinDays: z.coerce.number().int().optional(),
     seniority: z.array(z.string().min(1).max(40)).max(10).optional(),
     jobType: z.array(z.string().min(1).max(40)).max(10).optional(),
     companyAllowlist: z.array(z.string().min(1).max(80)).max(50).optional(),
@@ -63,6 +63,7 @@ jobsBuiltinRouter.get("/settings", async (req, res) => {
       pollIntervalMinutes: s.pollIntervalMinutes,
       keywords: s.keywords,
       remoteOnly: s.remoteOnly,
+      postedWithinDays: s.postedWithinDays,
     });
   } catch (e) {
     console.error(e);
@@ -93,7 +94,7 @@ jobsBuiltinRouter.put("/settings", async (req, res) => {
       remoteOnly: data.remoteOnly,
       // wipe other filters (user request), but accept legacy payloads without breaking
       locations: [],
-      postedWithinDays: legacy.data.postedWithinDays ?? current.postedWithinDays,
+      postedWithinDays: data.postedWithinDays,
       seniority: [],
       jobType: [],
       companyAllowlist: [],
@@ -104,6 +105,7 @@ jobsBuiltinRouter.put("/settings", async (req, res) => {
       pollIntervalMinutes: data.pollIntervalMinutes,
       keywords: data.keywords,
       remoteOnly: data.remoteOnly,
+      postedWithinDays: data.postedWithinDays,
     });
   } catch (e) {
     console.error(e);
@@ -197,9 +199,10 @@ function buildBuiltinJobsUrl(settings: store.BuiltinJobSettingsRow): string {
   // /jobs/remote?search=principal+software+engineer&daysSinceUpdated=1&city=&state=&country=USA&allLocations=true
   const q = (settings.keywords ?? "").trim();
   if (q) u.searchParams.set("search", q);
-  // Note: we intentionally do NOT include daysSinceUpdated here. BuiltIn commonly
-  // returns different result sets for server-side scraping when that param is set.
-  // We keep the UI setting for now, but omit it from the scrape URL.
+  // Apply 1-day / 3-day filter as requested.
+  if (settings.postedWithinDays) {
+    u.searchParams.set("daysSinceUpdated", String(settings.postedWithinDays));
+  }
   // Default to US, all locations (BuiltIn expects these params present in many views).
   u.searchParams.set("country", "USA");
   u.searchParams.set("allLocations", "true");

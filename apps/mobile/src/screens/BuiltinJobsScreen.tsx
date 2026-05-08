@@ -23,6 +23,7 @@ import {
 } from "../lib/api";
 
 const POLL_MINUTES = [0, 1, 2, 3, 5, 10, 15, 30] as const;
+const POSTED_WITHIN = [1, 3] as const;
 
 function labelPollMinutes(m: number): string {
   if (m === 0) return "Off";
@@ -42,6 +43,7 @@ export function BuiltinJobsScreen({ navigation }: Props) {
   const [pollMinutes, setPollMinutes] = useState(5);
   const [keywords, setKeywords] = useState("");
   const [remoteOnly, setRemoteOnly] = useState(false);
+  const [postedWithinDays, setPostedWithinDays] = useState<1 | 3>(1);
   const [busy, setBusy] = useState(false);
 
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -56,6 +58,7 @@ export function BuiltinJobsScreen({ navigation }: Props) {
     setPollMinutes(ctxSettings.pollIntervalMinutes ?? 5);
     setKeywords(ctxSettings.keywords ?? "");
     setRemoteOnly(Boolean(ctxSettings.remoteOnly));
+    setPostedWithinDays((ctxSettings.postedWithinDays ?? 1) === 3 ? 3 : 1);
   }, [ctxSettings]);
 
   const loadPreview = useCallback(async () => {
@@ -86,8 +89,9 @@ export function BuiltinJobsScreen({ navigation }: Props) {
       pollIntervalMinutes: pollMinutes,
       keywords,
       remoteOnly,
+      postedWithinDays,
     }),
-    [pollMinutes, keywords, remoteOnly]
+    [pollMinutes, keywords, remoteOnly, postedWithinDays]
   );
 
   const save = useCallback(async () => {
@@ -194,6 +198,31 @@ export function BuiltinJobsScreen({ navigation }: Props) {
               {remoteOnly ? "On" : "Off"}
             </Text>
           </Pressable>
+        </View>
+
+        <Text className="mt-6 text-xs font-medium uppercase text-slate-500">
+          Posted within
+        </Text>
+        <View className="mt-2 flex-row flex-wrap gap-2">
+          {POSTED_WITHIN.map((d) => (
+            <Pressable
+              key={d}
+              onPress={() => setPostedWithinDays(d)}
+              className={`rounded-full border px-3 py-2 ${
+                postedWithinDays === d
+                  ? "border-pin-600 bg-pin-50"
+                  : "border-slate-200 bg-white"
+              }`}
+            >
+              <Text
+                className={`text-sm font-semibold ${
+                  postedWithinDays === d ? "text-pin-900" : "text-slate-700"
+                }`}
+              >
+                {d === 1 ? "24 hours" : "3 days"}
+              </Text>
+            </Pressable>
+          ))}
         </View>
 
         <Pressable

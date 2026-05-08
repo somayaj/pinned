@@ -39,6 +39,7 @@ function defaultSettings(): BuiltinJobSettingsResponse {
     pollIntervalMinutes: 5,
     keywords: "",
     remoteOnly: false,
+    postedWithinDays: 1,
   };
 }
 
