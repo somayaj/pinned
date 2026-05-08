@@ -55,6 +55,7 @@ export function BuiltinJobsProvider({ children }: { children: React.ReactNode })
   const lastAlertRef = useRef<BuiltinJobsAlertPayload | null>(null);
   lastAlertRef.current = lastAlert;
   const lastDigestRef = useRef<string | null>(null);
+  const lastTickAtRef = useRef<number | null>(null);
   const pollDepsRef = useRef({
     accessToken: "" as string | undefined,
     apiBase: "",
@@ -91,9 +92,16 @@ export function BuiltinJobsProvider({ children }: { children: React.ReactNode })
     if (settings.pollIntervalMinutes === 0) return;
     let cancelled = false;
 
-    const tick = async () => {
+    const tick = async (opts?: { force?: boolean }) => {
       const { accessToken: token, apiBase: base, settings: s } = pollDepsRef.current;
       if (!token || s.pollIntervalMinutes === 0) return;
+      const intervalMs = Math.max(1, s.pollIntervalMinutes) * 60 * 1000;
+      const now = Date.now();
+      const last = lastTickAtRef.current;
+      if (!opts?.force && last != null && now - last < intervalMs) {
+        return;
+      }
+      lastTickAtRef.current = now;
       try {
         const data = await fetchBuiltinJobs(base, token);
         if (cancelled) return;
@@ -116,7 +124,7 @@ export function BuiltinJobsProvider({ children }: { children: React.ReactNode })
       }
     };
 
-    void tick();
+    void tick({ force: true });
     const ms = settings.pollIntervalMinutes * 60 * 1000;
     const id = setInterval(() => void tick(), ms);
 
