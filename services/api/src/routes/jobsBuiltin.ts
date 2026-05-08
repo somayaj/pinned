@@ -179,9 +179,20 @@ async function fetchHtml(url: string): Promise<string> {
     const res = await fetch(url, {
       signal: ctrl.signal,
       headers: {
+        // Some sites vary result sets based on request headers; mimic a real browser.
         "User-Agent":
-          "pin-it-api/1.0 (+https://github.com/somayaj/pinned; builtin jobs scrape)",
-        Accept: "text/html,application/xhtml+xml",
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+        Referer: "https://builtin.com/jobs/remote",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "same-origin",
+        "Sec-Fetch-User": "?1",
+        "Upgrade-Insecure-Requests": "1",
       },
     });
     if (!res.ok) {
