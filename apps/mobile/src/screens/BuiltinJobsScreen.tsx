@@ -46,6 +46,7 @@ export function BuiltinJobsScreen({ navigation }: Props) {
   const [postedWithinDays, setPostedWithinDays] = useState<1 | 3>(1);
   const [busy, setBusy] = useState(false);
 
+  const [debugMode, setDebugMode] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewItems, setPreviewItems] = useState<BuiltinJobResult[]>([]);
@@ -237,79 +238,103 @@ export function BuiltinJobsScreen({ navigation }: Props) {
           )}
         </Pressable>
 
-        <Text className="mt-10 text-xs font-medium uppercase text-slate-500">
-          Preview jobs (debug)
-        </Text>
-        <Text className="mt-1 text-sm text-slate-600">
-          This helps confirm the API is returning items for the popup.
-        </Text>
-        <Pressable
-          onPress={() => void loadPreview()}
-          disabled={previewLoading}
-          className="mt-3 items-center rounded-xl border border-slate-200 bg-white py-3 active:bg-slate-100 disabled:opacity-50"
-        >
-          {previewLoading ? (
-            <ActivityIndicator />
-          ) : (
-            <Text className="font-semibold text-slate-800">Refresh preview</Text>
-          )}
-        </Pressable>
-        {previewError ? (
-          <Text className="mt-2 text-sm text-red-600">{previewError}</Text>
-        ) : null}
-        {previewFetchedAt ? (
-          <Text className="mt-2 text-xs text-slate-500" numberOfLines={1}>
-            Updated{" "}
-            {new Date(previewFetchedAt).toLocaleString(undefined, {
-              dateStyle: "medium",
-              timeStyle: "short",
-            })}
-          </Text>
-        ) : null}
-        {previewSourceUrl ? (
+        <View className="mt-10 overflow-hidden rounded-xl border border-slate-200 bg-white">
           <Pressable
-            onPress={() => void Linking.openURL(previewSourceUrl)}
-            className="mt-1"
+            onPress={() => setDebugMode((v) => !v)}
+            className="flex-row items-center justify-between px-4 py-3 active:bg-slate-50"
           >
-            <Text className="text-[11px] text-slate-500" numberOfLines={2}>
-              Source: {previewSourceUrl}
+            <View className="min-w-0 flex-1 pr-3">
+              <Text className="text-sm font-semibold text-slate-900">Debug mode</Text>
+              <Text className="mt-1 text-xs text-slate-500">
+                Show the preview section for troubleshooting.
+              </Text>
+            </View>
+            <Text className="text-sm font-semibold text-slate-700">
+              {debugMode ? "On" : "Off"}
             </Text>
           </Pressable>
-        ) : null}
-        {previewParsedCount != null ? (
-          <Text className="mt-1 text-[11px] text-slate-500" numberOfLines={1}>
-            Parsed: {previewParsedCount}
-          </Text>
-        ) : null}
-        {previewWarnings?.length ? (
-          <Text className="mt-1 text-[11px] text-amber-800" numberOfLines={3}>
-            Warnings: {previewWarnings.join("; ")}
-          </Text>
-        ) : null}
-        {previewItems.length === 0 && !previewLoading && !previewError ? (
-          <Text className="mt-2 text-sm text-slate-500">No items returned.</Text>
-        ) : null}
-        {previewItems.length > 0 ? (
-          <View className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white">
-            {previewItems.slice(0, 10).map((j) => (
+
+          {debugMode ? (
+            <View className="border-t border-slate-200 px-4 py-4">
+              <Text className="text-xs font-medium uppercase text-slate-500">
+                Preview jobs (debug)
+              </Text>
+              <Text className="mt-1 text-sm text-slate-600">
+                This helps confirm the API is returning items for the popup.
+              </Text>
               <Pressable
-                key={j.id || j.url}
-                onPress={() => {
-                  if (j.url) void Linking.openURL(j.url);
-                }}
-                className="border-b border-slate-100 px-3 py-3 last:border-b-0 active:bg-slate-100"
+                onPress={() => void loadPreview()}
+                disabled={previewLoading}
+                className="mt-3 items-center rounded-xl border border-slate-200 bg-white py-3 active:bg-slate-100 disabled:opacity-50"
               >
-                <Text className="text-sm font-semibold text-slate-900" numberOfLines={2}>
-                  {j.title}
-                </Text>
-                <Text className="mt-1 text-[11px] text-slate-500" numberOfLines={2}>
-                  {j.company}
-                  {j.location ? ` · ${j.location}` : ""}
-                </Text>
+                {previewLoading ? (
+                  <ActivityIndicator />
+                ) : (
+                  <Text className="font-semibold text-slate-800">Refresh preview</Text>
+                )}
               </Pressable>
-            ))}
-          </View>
-        ) : null}
+              {previewError ? (
+                <Text className="mt-2 text-sm text-red-600">{previewError}</Text>
+              ) : null}
+              {previewFetchedAt ? (
+                <Text className="mt-2 text-xs text-slate-500" numberOfLines={1}>
+                  Updated{" "}
+                  {new Date(previewFetchedAt).toLocaleString(undefined, {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}
+                </Text>
+              ) : null}
+              {previewSourceUrl ? (
+                <Pressable
+                  onPress={() => void Linking.openURL(previewSourceUrl)}
+                  className="mt-1"
+                >
+                  <Text className="text-[11px] text-slate-500" numberOfLines={2}>
+                    Source: {previewSourceUrl}
+                  </Text>
+                </Pressable>
+              ) : null}
+              {previewParsedCount != null ? (
+                <Text className="mt-1 text-[11px] text-slate-500" numberOfLines={1}>
+                  Parsed: {previewParsedCount}
+                </Text>
+              ) : null}
+              {previewWarnings?.length ? (
+                <Text className="mt-1 text-[11px] text-amber-800" numberOfLines={3}>
+                  Warnings: {previewWarnings.join("; ")}
+                </Text>
+              ) : null}
+              {previewItems.length === 0 && !previewLoading && !previewError ? (
+                <Text className="mt-2 text-sm text-slate-500">No items returned.</Text>
+              ) : null}
+              {previewItems.length > 0 ? (
+                <View className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white">
+                  {previewItems.slice(0, 10).map((j) => (
+                    <Pressable
+                      key={j.id || j.url}
+                      onPress={() => {
+                        if (j.url) void Linking.openURL(j.url);
+                      }}
+                      className="border-b border-slate-100 px-3 py-3 last:border-b-0 active:bg-slate-100"
+                    >
+                      <Text
+                        className="text-sm font-semibold text-slate-900"
+                        numberOfLines={2}
+                      >
+                        {j.title}
+                      </Text>
+                      <Text className="mt-1 text-[11px] text-slate-500" numberOfLines={2}>
+                        {j.company}
+                        {j.location ? ` · ${j.location}` : ""}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
