@@ -315,6 +315,28 @@ export async function migrate(): Promise<void> {
     DROP CONSTRAINT IF EXISTS builtin_job_settings_posted_within_days_check;
   `);
 
+  // Older deployments may have an auto-named CHECK constraint on `posted_within_days`
+  // (name can vary). Drop any CHECK constraints that reference this column.
+  await pool.query(`
+    DO $$
+    DECLARE
+      c RECORD;
+    BEGIN
+      FOR c IN
+        SELECT conname
+        FROM pg_constraint con
+        JOIN pg_class rel ON rel.oid = con.conrelid
+        JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+        WHERE nsp.nspname = 'public'
+          AND rel.relname = 'builtin_job_settings'
+          AND con.contype = 'c'
+          AND pg_get_constraintdef(con.oid) ILIKE '%posted_within_days%'
+      LOOP
+        EXECUTE format('ALTER TABLE public.builtin_job_settings DROP CONSTRAINT IF EXISTS %I', c.conname);
+      END LOOP;
+    END $$;
+  `);
+
   // Normalize any existing rows that violate the new constraint so the ALTER succeeds.
   await pool.query(`
     UPDATE builtin_job_settings
