@@ -165,13 +165,10 @@ function isRemoteish(location: string): boolean {
   return s.includes("remote");
 }
 
-function isStrictRemote(location: string): boolean {
-  const s = normalizeForMatch(location);
-  if (!s.includes("remote")) return false;
-  // User expectation for “remote only”: exclude hybrid / in-office variants.
-  if (s.includes("hybrid")) return false;
-  if (s.includes("in-office")) return false;
-  return true;
+// Remote-only semantics are "remote-friendly": include Remote, Remote/Hybrid, In-Office/Remote.
+// Exclude purely In-Office/Hybrid roles.
+function isRemoteFriendly(location: string): boolean {
+  return isRemoteish(location);
 }
 
 function absoluteBuiltinUrl(href: string): string {
@@ -350,8 +347,8 @@ jobsBuiltinRouter.get("/search", async (req, res) => {
 
     const filtered = parsed
       // When remoteOnly is enabled we already use /jobs/remote; avoid being overly strict
-      // but still enforce the user's expectation: remote means not hybrid / in-office.
-      .filter((j) => (settings.remoteOnly ? isStrictRemote(j.location) : true))
+      // and use "remote-friendly" semantics for filtering.
+      .filter((j) => (settings.remoteOnly ? isRemoteFriendly(j.location) : true))
       .filter((j) => matchesKeywords(j.title, j.company, settings.keywords))
       .slice(0, 10);
 
