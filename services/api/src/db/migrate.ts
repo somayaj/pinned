@@ -314,6 +314,14 @@ export async function migrate(): Promise<void> {
     ALTER TABLE builtin_job_settings
     DROP CONSTRAINT IF EXISTS builtin_job_settings_posted_within_days_check;
   `);
+
+  // Normalize any existing rows that violate the new constraint so the ALTER succeeds.
+  await pool.query(`
+    UPDATE builtin_job_settings
+    SET posted_within_days = 1
+    WHERE posted_within_days IS NULL OR posted_within_days NOT IN (1, 3)
+  `);
+
   await pool.query(`
     ALTER TABLE builtin_job_settings
     ADD CONSTRAINT builtin_job_settings_posted_within_days_check
