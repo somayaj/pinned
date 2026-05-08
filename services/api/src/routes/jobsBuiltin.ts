@@ -286,7 +286,10 @@ function parseBuiltinJobsFromHtml(html: string): BuiltinJobResult[] {
     const cardText = $container.text().replace(/\s+/g, " ").trim();
     // crude location capture: prefer explicit “Remote/Hybrid” label plus nearby location if present
     let location = "";
-    const remoteMatch = cardText.match(/\b(In-Office or Remote|Remote|Hybrid|In-Office)\b/i);
+    // Prefer longer labels first so "Remote or Hybrid" doesn't get truncated to "Remote".
+    const remoteMatch = cardText.match(
+      /\b(In-Office or Remote|Remote or Hybrid|In-Office|Hybrid|Remote)\b/i
+    );
     if (remoteMatch) {
       const label = remoteMatch[0];
       // keep a nearby location if present
