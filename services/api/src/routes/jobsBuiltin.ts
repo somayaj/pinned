@@ -160,9 +160,9 @@ function buildBuiltinJobsUrl(settings: store.BuiltinJobSettingsRow): string {
   // /jobs/remote?search=principal+software+engineer&daysSinceUpdated=1&city=&state=&country=USA&allLocations=true
   const q = (settings.keywords ?? "").trim();
   if (q) u.searchParams.set("search", q);
-  if (settings.postedWithinDays) {
-    u.searchParams.set("daysSinceUpdated", String(settings.postedWithinDays));
-  }
+  // Note: we intentionally do NOT include daysSinceUpdated here. BuiltIn commonly
+  // returns different result sets for server-side scraping when that param is set.
+  // We keep the UI setting for now, but omit it from the scrape URL.
   // Default to US, all locations (BuiltIn expects these params present in many views).
   u.searchParams.set("country", "USA");
   u.searchParams.set("allLocations", "true");
@@ -220,13 +220,22 @@ function parseBuiltinJobsFromHtml(html: string): BuiltinJobResult[] {
     // Ignore “Saved” / UI chrome fragments that sometimes appear as link text
     if (title.length < 3) continue;
 
-    const $card = $a.closest("article, li, div").first();
+    // BuiltIn often places company link in a sibling element, not inside the title anchor container.
+    const $container = $a.closest("section, article, li, div");
     const company =
-      $card.find('a[href^="/company/"]').first().text().trim() ||
-      $a.closest("section, article, li, div").find('a[href^="/company/"]').first().text().trim() ||
+      $container.find('a[href^="/company/"][data-id="company-title"]').first().text().trim() ||
+      $container.find('a[href^="/company/"]').first().text().trim() ||
+      (() => {
+        const alt = $container.find("img[alt]").first().attr("alt");
+        if (alt && /logo/i.test(alt)) {
+          const cleaned = String(alt).replace(/\s+logo\s*$/i, "").trim();
+          if (cleaned) return cleaned;
+        }
+        return "";
+      })() ||
       "Unknown";
 
-    const cardText = $card.text().replace(/\s+/g, " ").trim();
+    const cardText = $container.text().replace(/\s+/g, " ").trim();
     // crude location capture: prefer lines containing ", " and "USA" or explicit “Remote”
     let location = "";
     const remoteMatch = cardText.match(/\b(In-Office or Remote|Remote|Hybrid|In-Office)\b/i);
