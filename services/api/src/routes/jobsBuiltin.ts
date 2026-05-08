@@ -338,7 +338,9 @@ jobsBuiltinRouter.get("/search", async (req, res) => {
     const filtered = parsed
       // When remoteOnly is enabled we already use /jobs/remote; avoid being overly strict
       // and use "remote-friendly" semantics for filtering.
-      .filter((j) => (settings.remoteOnly ? isRemoteFriendly(j.location) : true))
+      .filter((j) =>
+        settings.remoteOnly ? (j.location ? isRemoteFriendly(j.location) : true) : true
+      )
       .filter((j) => matchesKeywords(j.title, j.company, settings.keywords))
       .slice(0, 10);
 
