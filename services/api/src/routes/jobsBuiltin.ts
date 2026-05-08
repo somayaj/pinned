@@ -236,16 +236,17 @@ function parseBuiltinJobsFromHtml(html: string): BuiltinJobResult[] {
       "Unknown";
 
     const cardText = $container.text().replace(/\s+/g, " ").trim();
-    // crude location capture: prefer lines containing ", " and "USA" or explicit “Remote”
+    // crude location capture: prefer explicit “Remote/Hybrid” label plus nearby location if present
     let location = "";
     const remoteMatch = cardText.match(/\b(In-Office or Remote|Remote|Hybrid|In-Office)\b/i);
     if (remoteMatch) {
+      const label = remoteMatch[0];
       // keep a nearby location if present
       const after = cardText.slice(remoteMatch.index ?? 0);
       const locMatch =
         after.match(/\b([A-Za-z .'-]+,\s*[A-Z]{2},\s*USA)\b/) ??
         after.match(/\b(\d+\s+Locations)\b/i);
-      location = locMatch ? locMatch[1] : remoteMatch[0];
+      location = locMatch ? `${label} · ${locMatch[1]}` : label;
     } else {
       const locMatch = cardText.match(/\b([A-Za-z .'-]+,\s*[A-Z]{2},\s*USA)\b/);
       location = locMatch ? locMatch[1] : "";
@@ -295,8 +296,8 @@ jobsBuiltinRouter.get("/search", async (req, res) => {
 
     const filtered = parsed
       // When remoteOnly is enabled we already use /jobs/remote; avoid being overly strict
-      // about label text (“Remote or Hybrid”, “In-Office or Remote”, etc.) which BuiltIn uses.
-      .filter((j) => (settings.remoteOnly ? isRemoteish(j.location) || j.location === "" : true))
+      // but still enforce the user's expectation: remote means not hybrid / in-office.
+      .filter((j) => (settings.remoteOnly ? isStrictRemote(j.location) : true))
       .filter((j) => matchesAnyLocation(j.location, settings.locations))
       .filter((j) => matchesKeywords(j.title, j.company, settings.keywords))
       .filter((j) =>
